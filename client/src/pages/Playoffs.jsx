@@ -222,56 +222,62 @@ function Playoffs() {
     })
   }
 
-  const setMatchWinner = (
-    round,
-    index,
-    winnerId
-  ) => {
-    if (!playoff || !winnerId) return
+ const setMatchWinner = (round, index, winnerId) => {
+  if (!playoff || !winnerId) return
 
-    const next = structuredClone(playoff)
+  const next = structuredClone(playoff)
 
-    next[round][index].winnerId = winnerId
-
-    if (
-      round === 'quarterFinals' &&
-      next.type === '8-team'
-    ) {
-      if (index === 0) {
-        next.semiFinals[0].homeTeamId = winnerId
-      }
-
-      if (index === 1) {
-        next.semiFinals[0].awayTeamId = winnerId
-      }
-
-      if (index === 2) {
-        next.semiFinals[1].homeTeamId = winnerId
-      }
-
-      if (index === 3) {
-        next.semiFinals[1].awayTeamId = winnerId
-      }
-
-      next.final.homeTeamId = ''
-      next.final.awayTeamId = ''
-      next.final.winnerId = ''
-    }
-
-    if (round === 'semiFinals') {
-      if (index === 0) {
-        next.final.homeTeamId = winnerId
-      }
-
-      if (index === 1) {
-        next.final.awayTeamId = winnerId
-      }
-
-      next.final.winnerId = ''
-    }
-
+  // Grand Final is an object, not an array
+  if (round === 'final') {
+    next.final.winnerId = winnerId
     setPlayoff(next)
+    return
   }
+
+  // Quarter Finals / Semi Finals
+  next[round][index].winnerId = winnerId
+
+  if (round === 'quarterFinals' && next.type === '8-team') {
+    if (index === 0) {
+      next.semiFinals[0].homeTeamId = winnerId
+    }
+
+    if (index === 1) {
+      next.semiFinals[0].awayTeamId = winnerId
+    }
+
+    if (index === 2) {
+      next.semiFinals[1].homeTeamId = winnerId
+    }
+
+    if (index === 3) {
+      next.semiFinals[1].awayTeamId = winnerId
+    }
+
+    // Reset later stages when QF changes
+    next.semiFinals[index < 2 ? 0 : 1].winnerId = ''
+
+    next.final.homeTeamId = ''
+    next.final.awayTeamId = ''
+    next.final.winnerId = ''
+  }
+
+  if (round === 'semiFinals') {
+    if (index === 0) {
+      next.final.homeTeamId = winnerId
+    }
+
+    if (index === 1) {
+      next.final.awayTeamId = winnerId
+    }
+
+    // Reset final winner if semifinal changes
+    next.final.winnerId = ''
+  }
+
+  setPlayoff(next)
+}
+  
 
   const resetPlayoffs = () => {
     setPlayoff(null)
