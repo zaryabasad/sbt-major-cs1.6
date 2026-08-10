@@ -75,3 +75,407 @@ color:#fff;
 margin-top:10px;
 opacity:.8;
 }
+/* =========================================================
+   SBT MAJOR — PREMIUM PLAYOFFS UI
+   ========================================================= */
+
+.playoffs-page {
+  padding-bottom: 80px;
+}
+
+/* ---------- TOP SUMMARY ---------- */
+
+.playoffs-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 28px 0;
+}
+
+.playoff-summary-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 105px;
+  padding: 24px;
+  border: 1px solid rgba(255, 203, 62, 0.18);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255, 203, 62, 0.10), transparent 45%),
+    linear-gradient(135deg, rgba(20, 31, 55, 0.96), rgba(5, 10, 22, 0.98));
+  transition: 0.25s ease;
+}
+
+.playoff-summary-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 203, 62, 0.55);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+}
+
+.playoff-summary-card > svg {
+  width: 34px;
+  height: 34px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 10px rgba(255, 203, 62, 0.35));
+}
+
+.playoff-summary-card span {
+  display: block;
+  color: #8f9bb3;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 5px;
+}
+
+.playoff-summary-card strong {
+  display: block;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+/* ---------- STANDINGS ---------- */
+
+.playoffs-page .leaderboard-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.playoffs-page .leaderboard-table th {
+  color: #ffc93e;
+  background: rgba(255, 201, 62, 0.055);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 16px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.playoffs-page .leaderboard-table td {
+  padding: 17px 14px;
+  color: #dbe3f1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.playoffs-page .leaderboard-table tbody tr {
+  transition: 0.2s ease;
+}
+
+.playoffs-page .leaderboard-table tbody tr:hover {
+  background: rgba(255, 201, 62, 0.055);
+}
+
+.playoffs-page .leaderboard-table td:first-child {
+  color: #ffc93e;
+  font-weight: 800;
+}
+
+.playoffs-page .leaderboard-table td:nth-child(8) strong {
+  color: #65e6a2;
+}
+
+.playoffs-page .leaderboard-table td:last-child {
+  color: #ffc93e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+/* ---------- BRACKET ---------- */
+
+.playoff-bracket {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.15fr) minmax(250px, 0.95fr) minmax(260px, 0.95fr);
+  gap: 28px;
+  align-items: stretch;
+  margin-top: 30px;
+}
+
+.playoff-round {
+  position: relative;
+  min-width: 0;
+}
+
+.playoff-round-header {
+  margin-bottom: 18px;
+}
+
+.playoff-round-header > span {
+  display: inline-block;
+  color: #ffc93e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.playoff-round-header h2 {
+  margin: 0;
+  font-size: 25px;
+  color: #fff;
+}
+
+/* ---------- MATCH CARD ---------- */
+
+.playoff-match {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+  padding: 0 !important;
+  border: 1px solid rgba(112, 139, 190, 0.22);
+  background:
+    linear-gradient(135deg, rgba(17, 30, 55, 0.98), rgba(5, 10, 22, 0.98));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  transition: 0.25s ease;
+}
+
+.playoff-match:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 201, 62, 0.38);
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 0 25px rgba(255, 201, 62, 0.06);
+}
+
+.playoff-match-number {
+  display: block;
+  padding: 10px 14px;
+  color: #ffc93e;
+  background: rgba(255, 201, 62, 0.055);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.playoff-team {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  color: #dce5f5;
+  font-size: 16px;
+  font-weight: 700;
+  border-left: 3px solid transparent;
+  transition: 0.2s ease;
+}
+
+.playoff-team svg {
+  color: #ffc93e;
+  filter: drop-shadow(0 0 7px rgba(255, 201, 62, 0.6));
+}
+
+.playoff-team.winner {
+  color: #fff;
+  border-left-color: #ffc93e;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 201, 62, 0.16),
+      rgba(255, 201, 62, 0.025)
+    );
+}
+
+.playoff-vs {
+  padding: 3px 16px;
+  color: #59677f;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+/* ---------- WINNER SELECT ---------- */
+
+.playoff-match label {
+  display: block;
+  padding: 0 16px 16px;
+  color: #8f9bb3;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.playoff-match select {
+  width: 100%;
+  margin-top: 7px;
+  padding: 11px 13px;
+  color: #fff;
+  background: #0a1222;
+  border: 1px solid rgba(255, 201, 62, 0.25);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.playoff-match select:focus {
+  border-color: #ffc93e;
+  box-shadow: 0 0 0 3px rgba(255, 201, 62, 0.10);
+}
+
+.playoff-status {
+  display: block;
+  padding: 12px 16px 16px;
+  color: #65738c;
+  font-size: 12px;
+}
+
+/* ---------- SEMI / FINAL SPACING ---------- */
+
+.playoff-bracket > .playoff-round:nth-child(2) {
+  padding-top: 95px;
+}
+
+.playoff-bracket > .playoff-round:nth-child(2) .playoff-match:first-of-type {
+  margin-bottom: 105px;
+}
+
+/* ---------- FINAL ---------- */
+
+.final-round {
+  padding-top: 190px;
+}
+
+.final-round .playoff-match {
+  border-color: rgba(255, 201, 62, 0.38);
+  box-shadow:
+    0 15px 45px rgba(0, 0, 0, 0.35),
+    0 0 30px rgba(255, 201, 62, 0.07);
+}
+
+.final-round .playoff-match-number {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 201, 62, 0.16),
+    rgba(255, 201, 62, 0.03)
+  );
+}
+
+/* ---------- CHAMPION ---------- */
+
+.champion-box {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 30px 20px;
+  text-align: center;
+  border: 1px solid rgba(255, 201, 62, 0.45);
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(255, 201, 62, 0.18),
+      transparent 65%
+    ),
+    linear-gradient(145deg, #121d34, #060b17);
+  box-shadow:
+    0 0 45px rgba(255, 201, 62, 0.08),
+    inset 0 0 40px rgba(255, 201, 62, 0.025);
+}
+
+.champion-box svg {
+  width: 45px;
+  height: 45px;
+  color: #ffc93e;
+  filter: drop-shadow(0 0 14px rgba(255, 201, 62, 0.65));
+}
+
+.champion-box span {
+  color: #ffc93e;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+}
+
+.champion-box strong {
+  color: #fff;
+  font-size: 30px;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255, 201, 62, 0.22);
+}
+
+/* ---------- EMPTY STATE ---------- */
+
+.playoff-empty {
+  text-align: center;
+  padding: 55px 25px;
+  background:
+    radial-gradient(circle at center, rgba(255, 201, 62, 0.06), transparent 65%);
+}
+
+.playoff-empty > svg {
+  width: 45px;
+  height: 45px;
+  color: #ffc93e;
+  margin-bottom: 14px;
+}
+
+.playoff-empty h2 {
+  margin-bottom: 8px;
+}
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width: 1100px) {
+  .playoff-bracket {
+    grid-template-columns: 1fr;
+  }
+
+  .playoff-bracket > .playoff-round:nth-child(2),
+  .final-round {
+    padding-top: 0;
+  }
+
+  .playoff-bracket > .playoff-round:nth-child(2) .playoff-match:first-of-type {
+    margin-bottom: 18px;
+  }
+
+  .playoff-round {
+    max-width: 700px;
+    width: 100%;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .playoffs-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .playoff-summary-card {
+    min-height: 85px;
+  }
+
+  .playoff-summary-card strong {
+    font-size: 21px;
+  }
+
+  .playoff-round-header h2 {
+    font-size: 21px;
+  }
+
+  .playoff-team {
+    font-size: 14px;
+  }
+
+  .champion-box strong {
+    font-size: 24px;
+  }
+}
