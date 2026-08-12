@@ -86,7 +86,12 @@ function calculateStandings(teams, fixtures) {
   )
 }
 
-function PoolTable({ title, teams, fixtures, isFinished }) {
+function PoolTable({ title, teams, fixtures }) {
+    const isFinished =
+  fixtures.length > 0 &&
+  fixtures.every(
+    (fixture) => fixture.status === 'Completed'
+  )
   const standings = useMemo(
     () => calculateStandings(teams, fixtures),
     [teams, fixtures]
@@ -141,7 +146,7 @@ function PoolTable({ title, teams, fixtures, isFinished }) {
 
                   <td>
                     <strong>{row.teamName}</strong>
-                    {isFinished && index < 2 && (
+                    {index < 2 && (
   <small className="qualified-label">
     QUALIFIED
   </small>
@@ -389,17 +394,20 @@ const qualifiedB = poolBFinished
       ) : (
         <>
           <section className="pools-grid">
-            {isFinished && index < 2 && (
-  <small className="qualified-label">
-    QUALIFIED
-  </small>
-)}
-
+  {index < 2 && (
+    <small className="qualified-label">
+      QUALIFIED
+    </small>
+  )}
+<PoolTable
+  title="Pool A"
+  teams={poolA}
+  fixtures={poolAFixtures}
+/>
             <PoolTable
   title="Pool B"
   teams={poolB}
   fixtures={poolBFixtures}
-  isFinished={poolBFinished}
 />
           </section>
 
