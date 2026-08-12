@@ -57,6 +57,45 @@ function generateRoundRobin(teams, date, time, format) {
 function Fixtures() {
   const { teams } = useTeams()
 
+    function splitTeamsIntoPools(teams) {
+      const poolASize = Math.ceil(teams.length / 2)
+
+      return {
+        poolA: teams.slice(0, poolASize),
+        poolB: teams.slice(poolASize),
+      }
+    }
+
+    function generatePoolFixtures(teams, date, time, format) {
+      const { poolA, poolB } = splitTeamsIntoPools(teams)
+
+      const poolAFixtures = generateRoundRobin(
+        poolA,
+        date,
+        time,
+        format
+      ).map((fixture) => ({
+        ...fixture,
+        pool: 'A',
+      }))
+
+      const poolBStart = new Date(`${date}T${time}`)
+      poolBStart.setMinutes(
+        poolBStart.getMinutes() + poolAFixtures.length * 75
+      )
+
+      const poolBFixtures = generateRoundRobin(
+        poolB,
+        poolBStart.toISOString().slice(0, 10),
+        poolBStart.toTimeString().slice(0, 5),
+        format
+      ).map((fixture) => ({
+        ...fixture,
+        pool: 'B',
+      }))
+
+      return [...poolAFixtures, ...poolBFixtures]
+    }
   const {
     fixtures,
     replaceFixtures,
@@ -85,17 +124,20 @@ function Fixtures() {
       return
     }
 
-    const nextFixtures = generateRoundRobin(
-      teams,
-      generator.date,
-      generator.time,
-      generator.format
-    )
+    replaceFixtures(
+  generatePoolFixtures(
+    teams,
+    generator.date,
+    generator.time,
+    generator.format
+  )
+)
+    
 
-    replaceFixtures(nextFixtures)
+  
     setIsGeneratorOpen(false)
 
-    toast.success('Round Robin fixtures generated')
+    toast.success('Pool fixtures generated')
   }
 
   const saveFixture = (fixture) => {
@@ -152,9 +194,18 @@ function Fixtures() {
 
         </section>
       ) : (
-        <div className="fixtures-list">
+        <div className="pool-section">
+  <div className="pool-header">
+    <p className="eyebrow">GROUP A</p>
+    <h2>POOL A</h2>
+  </div>
 
-          {fixtures.map((fixture) => {
+  <div className="fixtures-list">
+
+
+          {fixtures
+  .filter((fixture) => fixture.pool === 'A')
+  .map((fixture) => {
             const home = getTeam(fixture.homeTeamId)
             const away = getTeam(fixture.awayTeamId)
             const winner = getTeam(fixture.winnerId)
@@ -214,7 +265,11 @@ function Fixtures() {
                   <span className="fixture-format">
                     {fixture.format}
                   </span>
-
+<div className="fixture-score">
+  <span>{fixture.homeScore ?? 0}</span>
+  <b>:</b>
+  <span>{fixture.awayScore ?? 0}</span>
+</div>
                   <span
                     className={
                       fixture.status === 'Completed'
@@ -246,8 +301,80 @@ function Fixtures() {
           })}
 
         </div>
+        </div>
       )}
+<div className="pool-section">
+  <div className="pool-header">
+    <p className="eyebrow">GROUP B</p>
+    <h2>POOL B</h2>
+  </div>
 
+  <div className="fixtures-list">
+    {fixtures
+      .filter((fixture) => fixture.pool === 'B')
+      .map((fixture) => {
+        const home = getTeam(fixture.homeTeamId)
+        const away = getTeam(fixture.awayTeamId)
+        const winner = getTeam(fixture.winnerId)
+
+        return (
+          <article
+            className={`fixture-card glass-card ${
+              fixture.status === 'Completed'
+                ? 'fixture-completed'
+                : ''
+            }`}
+            key={fixture.id}
+          >
+            <div className="fixture-top">
+              <span>Round {fixture.round}</span>
+              <span>
+                {fixture.date} · {fixture.time}
+              </span>
+            </div>
+
+            <div className="fixture-match">
+              <strong className={winner?.id === home?.id ? 'winner' : ''}>
+                {home?.name || 'Deleted Team'}
+              </strong>
+
+              <span className="fixture-vs">VS</span>
+
+              <strong className={winner?.id === away?.id ? 'winner' : ''}>
+                {away?.name || 'Deleted Team'}
+              </strong>
+            </div>
+
+            <div className="fixture-bottom">
+              <span className="fixture-format">
+                {fixture.format}
+              </span>
+
+              <span
+                className={
+                  fixture.status === 'Completed'
+                    ? 'fixture-status completed'
+                    : 'fixture-status'
+                }
+              >
+                {fixture.status === 'Completed'
+                  ? `Winner: ${winner?.name || 'Winner pending'}`
+                  : 'Upcoming'}
+              </span>
+
+              <button
+                className="icon-button"
+                onClick={() => setSelectedFixture(fixture)}
+                aria-label="Edit fixture"
+              >
+                <FaEdit />
+              </button>
+            </div>
+          </article>
+        )
+      })}
+  </div>
+</div>
       {isGeneratorOpen && (
         <div
           className="modal-backdrop"

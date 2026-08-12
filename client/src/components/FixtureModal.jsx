@@ -52,9 +52,13 @@ function FixtureModal({ fixture, teams, onClose, onSave }) {
     onSave({
       ...form,
       homeScore:
-        form.status === 'Completed' ? Number(form.homeScore) : '',
+        form.status === 'Completed'
+          ? Number(form.homeScore)
+          : '',
       awayScore:
-        form.status === 'Completed' ? Number(form.awayScore) : '',
+        form.status === 'Completed'
+          ? Number(form.awayScore)
+          : '',
       winnerId,
     })
   }
