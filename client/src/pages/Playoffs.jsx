@@ -86,7 +86,7 @@ function calculateStandings(teams, fixtures) {
   )
 }
 
-function PoolTable({ title, teams, fixtures }) {
+function PoolTable({ title, teams, fixtures, isFinished }) {
   const standings = useMemo(
     () => calculateStandings(teams, fixtures),
     [teams, fixtures]
@@ -141,9 +141,11 @@ function PoolTable({ title, teams, fixtures }) {
 
                   <td>
                     <strong>{row.teamName}</strong>
-                    {index < 2 && (
-                      <small className="qualified-label">QUALIFIED</small>
-                    )}
+                    {isFinished && index < 2 && (
+  <small className="qualified-label">
+    QUALIFIED
+  </small>
+)}
                   </td>
 
                   <td>{row.played}</td>
@@ -268,8 +270,27 @@ function Playoffs() {
     [poolB, poolBFixtures]
   )
 
-  const qualifiedA = standingsA.slice(0, 2)
-  const qualifiedB = standingsB.slice(0, 2)
+  const poolAFinished =
+  poolA.length > 0 &&
+  poolAFixtures.length > 0 &&
+  poolAFixtures.every(
+    (fixture) => fixture.status === 'Completed'
+  )
+
+const poolBFinished =
+  poolB.length > 0 &&
+  poolBFixtures.length > 0 &&
+  poolBFixtures.every(
+    (fixture) => fixture.status === 'Completed'
+  )
+
+const qualifiedA = poolAFinished
+  ? standingsA.slice(0, 2)
+  : []
+
+const qualifiedB = poolBFinished
+  ? standingsB.slice(0, 2)
+  : []
 
   const semi1Home = qualifiedA[0]
     ? getTeam(teams, qualifiedA[0].teamId)
@@ -368,17 +389,18 @@ function Playoffs() {
       ) : (
         <>
           <section className="pools-grid">
-            <PoolTable
-              title="Pool A"
-              teams={poolA}
-              fixtures={poolAFixtures}
-            />
+            {isFinished && index < 2 && (
+  <small className="qualified-label">
+    QUALIFIED
+  </small>
+)}
 
             <PoolTable
-              title="Pool B"
-              teams={poolB}
-              fixtures={poolBFixtures}
-            />
+  title="Pool B"
+  teams={poolB}
+  fixtures={poolBFixtures}
+  isFinished={poolBFinished}
+/>
           </section>
 
           <section className="qualification-banner glass-card">
