@@ -394,11 +394,7 @@ const qualifiedB = poolBFinished
       ) : (
         <>
           <section className="pools-grid">
-  {index < 2 && (
-    <small className="qualified-label">
-      QUALIFIED
-    </small>
-  )}
+  
 <PoolTable
   title="Pool A"
   teams={poolA}
