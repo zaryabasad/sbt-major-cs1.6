@@ -1,26 +1,93 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
+import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
-const STORAGE_KEY = 'sbt-major-admin-session'
-const ADMIN_CREDENTIALS = { username: 'admin', password: 'major123' }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem(STORAGE_KEY)
-    return savedUser ? JSON.parse(savedUser) : null
-  })
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = (username, password) => {
-    if (username !== ADMIN_CREDENTIALS.username || password !== ADMIN_CREDENTIALS.password) return false
-    const adminUser = { username }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser))
-    setUser(adminUser)
-    return true
+  useEffect(() => {
+    let mounted = true
+
+    const loadSession = async () => {
+      const { data, error } = await supabase.auth.getSession()
+
+      if (error) {
+        console.error('Auth session error:', error)
+      }
+
+      if (mounted) {
+        setUser(data.session?.user ?? null)
+        setLoading(false)
+      }
+    }
+
+    loadSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const login = async (email, password) => {
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      }
+    }
+
+    setUser(data.user)
+
+    return {
+      success: true,
+      user: data.user,
+    }
   }
 
-  const logout = () => { localStorage.removeItem(STORAGE_KEY); setUser(null) }
-  const value = useMemo(() => ({ user, login, logout }), [user])
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  const logout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+    }),
+    [user, loading]
+  )
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

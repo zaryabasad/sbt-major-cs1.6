@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 import {
   FaEdit,
   FaPlus,
@@ -19,6 +20,9 @@ import { useTeams } from '../context/TeamsContext'
 import { formatCurrency } from '../utils/formatCurrency'
 function Teams() {
   const { teams, addTeam, updateTeam, deleteTeam } = useTeams()
+  const { user } = useAuth()
+
+  const isAdmin = Boolean(user)
 const { players } = usePlayers()
 
 const [selectedTeam, setSelectedTeam] = useState(null)
@@ -80,7 +84,23 @@ const getRoster = (teamId) =>
       player.teamId === teamId
   )
 
-  return <section className="teams-page"><header className="teams-heading"><div><p className="eyebrow">SBT Major · Tournament Roster</p><h1>Teams</h1><p>Build and manage every competing squad in the Major.</p></div><button className="button button-primary" onClick={openCreate}><FaPlus /> Create Team</button></header>{teams.length === 0 ? <section className="empty-teams glass-card"><FaShieldAlt /><h2>No teams created yet</h2><p>Add the first team to begin preparing the SBT MAJOR roster.</p><button className="button button-primary" onClick={openCreate}><FaPlus /> Create First Team</button></section> : <div className="teams-grid">{teams.map((team) => {
+  return <section className="teams-page"><header className="teams-heading"><div><p className="eyebrow">SBT Major · Tournament Roster</p><h1>Teams</h1><p>Build and manage every competing squad in the Major.</p></div><button className="button button-primary" onClick={openCreate}><FaPlus /> {isAdmin && (
+  <button
+    className="button button-primary"
+    onClick={openCreate}
+  >
+    <FaPlus />
+    Create Team
+  </button>
+)}</button></header>{teams.length === 0 ? <section className="empty-teams glass-card"><FaShieldAlt /><h2>No teams created yet</h2><p>Add the first team to begin preparing the SBT MAJOR roster.</p><button className="button button-primary" onClick={openCreate}><FaPlus /> {isAdmin && (
+  <button
+    className="button button-primary"
+    onClick={openCreate}
+  >
+    <FaPlus />
+    Create First Team
+  </button>
+)}</button></section> : <div className="teams-grid">{teams.map((team) => {
   const roster = getRoster(team.id)
 
   const remainingBudget = Math.max(
@@ -112,29 +132,29 @@ const getRoster = (teamId) =>
           )}
         </div>
 
-        <div className="team-actions">
+        {isAdmin && (
+  <div className="team-actions">
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        openEdit(team)
+      }}
+      aria-label={`Edit ${team.name}`}
+    >
+      <FaEdit />
+    </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              openEdit(team)
-            }}
-            aria-label={`Edit ${team.name}`}
-          >
-            <FaEdit />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setTeamToDelete(team)
-            }}
-            aria-label={`Delete ${team.name}`}
-          >
-            <FaTrash />
-          </button>
-
-        </div>
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        setTeamToDelete(team)
+      }}
+      aria-label={`Delete ${team.name}`}
+    >
+      <FaTrash />
+    </button>
+  </div>
+)}
       </div>
 
       <h2>{team.name}</h2>

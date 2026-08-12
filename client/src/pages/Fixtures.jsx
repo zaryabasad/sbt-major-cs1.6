@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FaEdit, FaPlus, FaRandom } from 'react-icons/fa'
 import toast from 'react-hot-toast'
+import { useAuth } from '../context/AuthContext'
 
 import FixtureModal from '../components/FixtureModal'
 import { useFixtures } from '../context/FixturesContext'
@@ -56,6 +57,9 @@ function generateRoundRobin(teams, date, time, format) {
 
 function Fixtures() {
   const { teams } = useTeams()
+  const { user } = useAuth()
+
+  const isAdmin = Boolean(user)
 
     function splitTeamsIntoPools(teams) {
       const poolASize = Math.ceil(teams.length / 2)
@@ -64,37 +68,7 @@ function Fixtures() {
         poolA: teams.slice(0, poolASize),
         poolB: teams.slice(poolASize),
       }
-    }
-
-    function generatePoolFixtures(teams, date, time, format) {
-      const { poolA, poolB } = splitTeamsIntoPools(teams)
-
-      const poolAFixtures = generateRoundRobin(
-        poolA,
-        date,
-        time,
-        format
-      ).map((fixture) => ({
-        ...fixture,
-        pool: 'A',
-      }))
-
-      const poolBStart = new Date(`${date}T${time}`)
-      poolBStart.setMinutes(
-        poolBStart.getMinutes() + poolAFixtures.length * 75
-      )
-
-      const poolBFixtures = generateRoundRobin(
-        poolB,
-        poolBStart.toISOString().slice(0, 10),
-        poolBStart.toTimeString().slice(0, 5),
-        format
-      ).map((fixture) => ({
-        ...fixture,
-        pool: 'B',
-      }))
-
-      return [...poolAFixtures, ...poolBFixtures]
+    
     }
   const {
     fixtures,
@@ -163,13 +137,15 @@ function Fixtures() {
           </p>
         </div>
 
-        <button
-          className="button button-primary"
-          onClick={() => setIsGeneratorOpen(true)}
-        >
-          <FaRandom />
-          Generate Round Robin
-        </button>
+        {isAdmin && (
+  <button
+    className="button button-primary"
+    onClick={() => setIsGeneratorOpen(true)}
+  >
+    <FaRandom />
+    Generate Round Robin
+  </button>
+)}
       </header>
 
       {fixtures.length === 0 ? (
@@ -184,13 +160,15 @@ function Fixtures() {
             team roster.
           </p>
 
-          <button
-            className="button button-primary"
-            onClick={() => setIsGeneratorOpen(true)}
-          >
-            <FaRandom />
-            Generate Fixtures
-          </button>
+          {isAdmin && (
+  <button
+    className="button button-primary"
+    onClick={() => setIsGeneratorOpen(true)}
+  >
+    <FaRandom />
+    Generate Fixtures
+  </button>
+)}
 
         </section>
       ) : (
@@ -284,15 +262,17 @@ function Fixtures() {
                       : 'Upcoming'}
                   </span>
 
-                  <button
-                    className="icon-button"
-                    onClick={() =>
-                      setSelectedFixture(fixture)
-                    }
-                    aria-label="Edit fixture"
-                  >
-                    <FaEdit />
-                  </button>
+                  {isAdmin && (
+  <button
+    className="icon-button"
+    onClick={() =>
+      setSelectedFixture(fixture)
+    }
+    aria-label="Edit fixture"
+  >
+    <FaEdit />
+  </button>
+)}
 
                 </div>
 
@@ -362,14 +342,15 @@ function Fixtures() {
                   : 'Upcoming'}
               </span>
 
-              <button
-                className="icon-button"
-                onClick={() => setSelectedFixture(fixture)}
-                aria-label="Edit fixture"
-              >
-                <FaEdit />
-              </button>
-            </div>
+{isAdmin && (
+  <button
+    className="icon-button"
+    onClick={() => setSelectedFixture(fixture)}
+    aria-label="Edit fixture"
+  >
+    <FaEdit />
+  </button>
+)}            </div>
           </article>
         )
       })}

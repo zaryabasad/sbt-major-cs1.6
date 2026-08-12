@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FaTrophy, FaUsers, FaMedal } from 'react-icons/fa'
 import toast from 'react-hot-toast'
+
 import { useTeams } from '../context/TeamsContext'
 import { useFixtures } from '../context/FixturesContext'
+import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/PageHeader'
 
 const PLAYOFF_STORAGE_KEY = 'sbt-major-pools-playoffs'
 
 function splitIntoPools(teams) {
   const sorted = [...teams]
-
   const poolASize = Math.ceil(sorted.length / 2)
 
   return {
@@ -35,7 +36,8 @@ function calculateStandings(teams, fixtures) {
     points: 0,
   }))
 
-  const findRow = (id) => table.find((row) => row.teamId === id)
+  const findRow = (id) =>
+    table.find((row) => row.teamId === id)
 
   fixtures
     .filter(
@@ -87,11 +89,6 @@ function calculateStandings(teams, fixtures) {
 }
 
 function PoolTable({ title, teams, fixtures }) {
-    const isFinished =
-  fixtures.length > 0 &&
-  fixtures.every(
-    (fixture) => fixture.status === 'Completed'
-  )
   const standings = useMemo(
     () => calculateStandings(teams, fixtures),
     [teams, fixtures]
@@ -111,7 +108,9 @@ function PoolTable({ title, teams, fixtures }) {
       </div>
 
       {teams.length === 0 ? (
-        <div className="empty-state">No teams in this pool.</div>
+        <div className="empty-state">
+          No teams in this pool.
+        </div>
       ) : (
         <div className="standings-table-wrap">
           <table className="standings-table">
@@ -146,11 +145,12 @@ function PoolTable({ title, teams, fixtures }) {
 
                   <td>
                     <strong>{row.teamName}</strong>
+
                     {index < 2 && (
-  <small className="qualified-label">
-    QUALIFIED
-  </small>
-)}
+                      <small className="qualified-label">
+                        QUALIFIED
+                      </small>
+                    )}
                   </td>
 
                   <td>{row.played}</td>
@@ -168,7 +168,9 @@ function PoolTable({ title, teams, fixtures }) {
                           : ''
                     }
                   >
-                    {row.mr > 0 ? `+${row.mr}` : row.mr}
+                    {row.mr > 0
+                      ? `+${row.mr}`
+                      : row.mr}
                   </td>
 
                   <td>
@@ -194,10 +196,13 @@ function PlayoffMatch({
   awayTeam,
   winnerId,
   onWinnerChange,
+  isAdmin,
 }) {
   return (
     <article className="playoff-match glass-card">
-      <div className="playoff-match-title">{title}</div>
+      <div className="playoff-match-title">
+        {title}
+      </div>
 
       <div className="playoff-team">
         {homeTeam?.name || 'TBD'}
@@ -211,18 +216,35 @@ function PlayoffMatch({
         {winnerId === awayTeam?.id && <FaTrophy />}
       </div>
 
-      {homeTeam && awayTeam && (
+      {isAdmin && homeTeam && awayTeam && (
         <label className="winner-select">
           Winner
+
           <select
             value={winnerId || ''}
-            onChange={(event) => onWinnerChange(event.target.value)}
+            onChange={(event) =>
+              onWinnerChange(event.target.value)
+            }
           >
-            <option value="">Select winner</option>
-            <option value={homeTeam.id}>{homeTeam.name}</option>
-            <option value={awayTeam.id}>{awayTeam.name}</option>
+            <option value="">
+              Select winner
+            </option>
+
+            <option value={homeTeam.id}>
+              {homeTeam.name}
+            </option>
+
+            <option value={awayTeam.id}>
+              {awayTeam.name}
+            </option>
           </select>
         </label>
+      )}
+
+      {!isAdmin && homeTeam && awayTeam && (
+        <span className="playoff-viewer-label">
+          Admin selects winner
+        </span>
       )}
     </article>
   )
@@ -231,10 +253,17 @@ function PlayoffMatch({
 function Playoffs() {
   const { teams } = useTeams()
   const { fixtures } = useFixtures()
+  const { user } = useAuth()
+
+  const isAdmin = Boolean(user)
 
   const [playoff, setPlayoff] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(PLAYOFF_STORAGE_KEY) || 'null')
+      return JSON.parse(
+        localStorage.getItem(
+          PLAYOFF_STORAGE_KEY
+        ) || 'null'
+      )
     } catch {
       return null
     }
@@ -249,8 +278,14 @@ function Playoffs() {
     () =>
       fixtures.filter(
         (fixture) =>
-          poolA.some((team) => team.id === fixture.homeTeamId) &&
-          poolA.some((team) => team.id === fixture.awayTeamId)
+          poolA.some(
+            (team) =>
+              team.id === fixture.homeTeamId
+          ) &&
+          poolA.some(
+            (team) =>
+              team.id === fixture.awayTeamId
+          )
       ),
     [fixtures, poolA]
   )
@@ -259,67 +294,86 @@ function Playoffs() {
     () =>
       fixtures.filter(
         (fixture) =>
-          poolB.some((team) => team.id === fixture.homeTeamId) &&
-          poolB.some((team) => team.id === fixture.awayTeamId)
+          poolB.some(
+            (team) =>
+              team.id === fixture.homeTeamId
+          ) &&
+          poolB.some(
+            (team) =>
+              team.id === fixture.awayTeamId
+          )
       ),
     [fixtures, poolB]
   )
 
   const standingsA = useMemo(
-    () => calculateStandings(poolA, poolAFixtures),
+    () =>
+      calculateStandings(
+        poolA,
+        poolAFixtures
+      ),
     [poolA, poolAFixtures]
   )
 
   const standingsB = useMemo(
-    () => calculateStandings(poolB, poolBFixtures),
+    () =>
+      calculateStandings(
+        poolB,
+        poolBFixtures
+      ),
     [poolB, poolBFixtures]
   )
 
-  const poolAFinished =
-  poolA.length > 0 &&
-  poolAFixtures.length > 0 &&
-  poolAFixtures.every(
-    (fixture) => fixture.status === 'Completed'
-  )
-
-const poolBFinished =
-  poolB.length > 0 &&
-  poolBFixtures.length > 0 &&
-  poolBFixtures.every(
-    (fixture) => fixture.status === 'Completed'
-  )
-
-const qualifiedA = poolAFinished
-  ? standingsA.slice(0, 2)
-  : []
-
-const qualifiedB = poolBFinished
-  ? standingsB.slice(0, 2)
-  : []
+  const qualifiedA = standingsA.slice(0, 2)
+  const qualifiedB = standingsB.slice(0, 2)
 
   const semi1Home = qualifiedA[0]
-    ? getTeam(teams, qualifiedA[0].teamId)
+    ? getTeam(
+        teams,
+        qualifiedA[0].teamId
+      )
     : null
 
   const semi1Away = qualifiedB[1]
-    ? getTeam(teams, qualifiedB[1].teamId)
+    ? getTeam(
+        teams,
+        qualifiedB[1].teamId
+      )
     : null
 
   const semi2Home = qualifiedB[0]
-    ? getTeam(teams, qualifiedB[0].teamId)
+    ? getTeam(
+        teams,
+        qualifiedB[0].teamId
+      )
     : null
 
   const semi2Away = qualifiedA[1]
-    ? getTeam(teams, qualifiedA[1].teamId)
+    ? getTeam(
+        teams,
+        qualifiedA[1].teamId
+      )
     : null
 
-  const semi1Winner = playoff?.semi1Winner || ''
-  const semi2Winner = playoff?.semi2Winner || ''
+  const semi1Winner =
+    playoff?.semi1Winner || ''
 
-  const finalHome = getTeam(teams, semi1Winner)
-  const finalAway = getTeam(teams, semi2Winner)
+  const semi2Winner =
+    playoff?.semi2Winner || ''
+
+  const finalHome = getTeam(
+    teams,
+    semi1Winner
+  )
+
+  const finalAway = getTeam(
+    teams,
+    semi2Winner
+  )
 
   const updatePlayoff = (changes) => {
+    if (!isAdmin) return
+
     setPlayoff((current) => {
       const next = {
         ...(current || {}),
@@ -336,8 +390,14 @@ const qualifiedB = poolBFinished
   }
 
   const resetPlayoffs = () => {
-    localStorage.removeItem(PLAYOFF_STORAGE_KEY)
+    if (!isAdmin) return
+
+    localStorage.removeItem(
+      PLAYOFF_STORAGE_KEY
+    )
+
     setPlayoff(null)
+
     toast.success('Playoffs reset')
   }
 
@@ -345,17 +405,23 @@ const qualifiedB = poolBFinished
     if (!teams.length) return
 
     const poolIds = new Set(
-      [...poolA, ...poolB].map((team) => team.id)
+      [...poolA, ...poolB].map(
+        (team) => team.id
+      )
     )
 
     if (poolIds.size !== teams.length) {
       setPlayoff(null)
     }
-  }, [teams.length])
+  }, [teams.length, poolA, poolB])
 
-  const finalWinner = playoff?.finalWinner || ''
+  const finalWinner =
+    playoff?.finalWinner || ''
 
-  const champion = getTeam(teams, finalWinner)
+  const champion = getTeam(
+    teams,
+    finalWinner
+  )
 
   const enoughTeams = teams.length >= 4
 
@@ -366,15 +432,36 @@ const qualifiedB = poolBFinished
         description="Two-pool championship system — qualify, battle, and become the SBT MAJOR champion."
       />
 
+      {!isAdmin && (
+        <section className="glass-card playoff-viewer-notice">
+          <FaTrophy />
+
+          <div>
+            <strong>
+              Viewer Mode
+            </strong>
+
+            <span>
+              Playoff results are controlled by
+              tournament administrators.
+            </span>
+          </div>
+        </section>
+      )}
+
       <section className="playoff-hero glass-card">
         <div>
-          <span className="eyebrow">CHAMPIONSHIP FORMAT</span>
+          <span className="eyebrow">
+            CHAMPIONSHIP FORMAT
+          </span>
+
           <h2>
             {teams.length} Teams · 2 Pools
           </h2>
 
           <p>
-            Top 2 teams from each pool advance to the Semi Finals.
+            Top 2 teams from each pool advance
+            to the Semi Finals.
           </p>
         </div>
 
@@ -386,34 +473,41 @@ const qualifiedB = poolBFinished
       {!enoughTeams ? (
         <section className="empty-state glass-card">
           <FaUsers />
+
           <h2>Need at least 4 teams</h2>
+
           <p>
-            Add at least 4 teams to create the championship stage.
+            Add at least 4 teams to create
+            the championship stage.
           </p>
         </section>
       ) : (
         <>
           <section className="pools-grid">
-  
-<PoolTable
-  title="Pool A"
-  teams={poolA}
-  fixtures={poolAFixtures}
-/>
             <PoolTable
-  title="Pool B"
-  teams={poolB}
-  fixtures={poolBFixtures}
-/>
+              title="Pool A"
+              teams={poolA}
+              fixtures={poolAFixtures}
+            />
+
+            <PoolTable
+              title="Pool B"
+              teams={poolB}
+              fixtures={poolBFixtures}
+            />
           </section>
 
           <section className="qualification-banner glass-card">
             <FaMedal />
 
             <div>
-              <strong>Qualification</strong>
+              <strong>
+                Qualification
+              </strong>
+
               <span>
-                Top 2 from Pool A + Top 2 from Pool B → Semi Finals
+                Top 2 from Pool A + Top 2 from
+                Pool B → Semi Finals
               </span>
             </div>
           </section>
@@ -421,16 +515,23 @@ const qualifiedB = poolBFinished
           <section className="championship-stage">
             <div className="section-heading">
               <div>
-                <span className="eyebrow">CHAMPIONSHIP STAGE</span>
-                <h2>Top 4 Playoffs</h2>
+                <span className="eyebrow">
+                  CHAMPIONSHIP STAGE
+                </span>
+
+                <h2>
+                  Top 4 Playoffs
+                </h2>
               </div>
 
-              <button
-                className="button button-secondary"
-                onClick={resetPlayoffs}
-              >
-                RESET PLAYOFFS
-              </button>
+              {isAdmin && (
+                <button
+                  className="button button-secondary"
+                  onClick={resetPlayoffs}
+                >
+                  RESET PLAYOFFS
+                </button>
+              )}
             </div>
 
             <div className="bracket-grid">
@@ -444,6 +545,7 @@ const qualifiedB = poolBFinished
                   homeTeam={semi1Home}
                   awayTeam={semi1Away}
                   winnerId={semi1Winner}
+                  isAdmin={isAdmin}
                   onWinnerChange={(winnerId) =>
                     updatePlayoff({
                       semi1Winner: winnerId,
@@ -457,6 +559,7 @@ const qualifiedB = poolBFinished
                   homeTeam={semi2Home}
                   awayTeam={semi2Away}
                   winnerId={semi2Winner}
+                  isAdmin={isAdmin}
                   onWinnerChange={(winnerId) =>
                     updatePlayoff({
                       semi2Winner: winnerId,
@@ -476,6 +579,7 @@ const qualifiedB = poolBFinished
                   homeTeam={finalHome}
                   awayTeam={finalAway}
                   winnerId={finalWinner}
+                  isAdmin={isAdmin}
                   onWinnerChange={(winnerId) =>
                     updatePlayoff({
                       finalWinner: winnerId,
@@ -489,9 +593,13 @@ const qualifiedB = poolBFinished
 
                     <span>CHAMPION</span>
 
-                    <h2>{champion.name}</h2>
+                    <h2>
+                      {champion.name}
+                    </h2>
 
-                    <p>SBT MAJOR CS 1.6</p>
+                    <p>
+                      SBT MAJOR CS 1.6
+                    </p>
                   </div>
                 )}
               </div>

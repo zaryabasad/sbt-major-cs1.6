@@ -675,3 +675,477 @@
     font-size: 21px;
   }
 }
+
+/* =========================================================
+   SBT MAJOR - FINAL RESPONSIVE POLISH
+   Mobile / Tablet / Small Laptop
+   ========================================================= */
+
+/* Prevent horizontal overflow on the complete application */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* ---------- Tablet ---------- */
+
+@media (max-width: 1100px) {
+  .home-hero {
+    grid-template-columns: 1fr;
+    gap: 35px;
+    text-align: center;
+  }
+
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .home-tournament-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-status-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .auction-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .bracket-grid {
+    grid-template-columns: 1fr;
+    gap: 35px;
+  }
+
+  .final-column {
+    width: 100%;
+  }
+
+  .pools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 680px;
+  }
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 700px) {
+  body {
+    font-size: 14px;
+  }
+
+  main {
+    width: 100%;
+  }
+
+  .home-page {
+    padding-bottom: 35px;
+  }
+
+  .home-hero {
+    min-height: auto;
+    padding: 45px 18px 30px;
+    gap: 25px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(38px, 12vw, 58px);
+    line-height: 0.98;
+  }
+
+  .page-description {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .hero-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .esports-illustration,
+  .hero-illustration {
+    max-width: 85vw;
+    margin: 0 auto;
+  }
+
+  .stats-grid,
+  .admin-stats-grid,
+  .admin-status-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card,
+  .admin-stat-card,
+  .admin-status-card {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .home-tournament-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 20px;
+  }
+
+  .home-match-card,
+  .home-standings-section,
+  .home-champion {
+    padding: 18px;
+  }
+
+  .home-card-heading,
+  .section-heading {
+    gap: 12px;
+  }
+
+  .home-card-heading h2,
+  .section-heading h2 {
+    font-size: 20px;
+  }
+
+  .home-match-teams {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .home-match-teams span {
+    order: 2;
+  }
+
+  .home-match-meta {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 7px;
+  }
+
+  .home-match-card .button,
+  .home-section-action .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .home-standings-section .table-wrap {
+    margin-inline: -18px;
+    width: calc(100% + 36px);
+  }
+
+  .home-standings-section table {
+    min-width: 560px;
+  }
+
+  /* Admin */
+
+  .admin-page {
+    padding-bottom: 35px;
+  }
+
+  .admin-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .admin-hero h1 {
+    font-size: 30px;
+  }
+
+  .admin-hero .logout-button {
+    width: 100%;
+  }
+
+  .admin-module-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Auction */
+
+  .auction-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .auction-heading h1 {
+    font-size: 30px;
+  }
+
+  .auction-timer {
+    width: 100%;
+    text-align: center;
+  }
+
+  .auction-current,
+  .auction-panel,
+  .auction-history {
+    padding: 16px;
+  }
+
+  .current-player {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .auction-bid-display {
+    text-align: center;
+  }
+
+  .auction-control-actions {
+    flex-direction: column;
+  }
+
+  .auction-control-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .auction-player {
+    width: 100%;
+    min-height: 58px;
+  }
+
+  /* Fixtures */
+
+  .fixtures-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .fixtures-heading .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .fixture-card {
+    padding: 15px;
+  }
+
+  .fixture-top,
+  .fixture-bottom {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .fixture-match {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .fixture-vs {
+    order: 2;
+  }
+
+  .fixture-match strong:last-child {
+    order: 3;
+  }
+
+  /* Teams */
+
+  .teams-grid,
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-card {
+    padding: 16px;
+  }
+
+  .team-actions {
+    opacity: 1;
+  }
+
+  /* Playoffs */
+
+  .playoff-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 18px;
+  }
+
+  .format-badge {
+    align-self: stretch;
+    text-align: center;
+  }
+
+  .qualification-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .championship-stage {
+    margin-top: 22px;
+  }
+
+  .bracket-grid {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+
+  .playoff-match {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .final-column {
+    width: 100%;
+  }
+
+  .pool-section {
+    padding: 15px;
+  }
+
+  /* Existing premium playoff stylesheet */
+  .playoffs-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .playoff-bracket {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .playoff-round {
+    max-width: none;
+  }
+
+  .playoff-round:not(:first-child)::before,
+  .playoff-round:not(:last-child)::after {
+    display: none;
+  }
+
+  /* Statistics */
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-table-section {
+    padding: 15px;
+  }
+
+  .stats-table-section .table-wrap {
+    margin-inline: -15px;
+    width: calc(100% + 30px);
+  }
+
+  /* Login */
+
+  .login-page {
+    padding: 20px;
+  }
+
+  .login-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px 18px;
+  }
+
+  .login-card h1 {
+    font-size: 30px;
+  }
+
+  /* Generic buttons */
+
+  .button {
+    min-height: 44px;
+  }
+
+  /* Modal safety on phones */
+
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal,
+  .team-modal,
+  .details-modal,
+  .confirm-dialog {
+    width: 100%;
+    max-width: calc(100vw - 24px);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+}
+
+/* ---------- Very small phones ---------- */
+
+@media (max-width: 420px) {
+  .home-hero {
+    padding-inline: 14px;
+  }
+
+  .hero-copy h1 {
+    font-size: 36px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .glass-card {
+    border-radius: 10px;
+  }
+
+  .admin-hero,
+  .home-match-card,
+  .home-standings-section,
+  .home-champion,
+  .auction-current,
+  .auction-panel,
+  .auction-history,
+  .pool-section {
+    padding: 14px;
+  }
+
+  .home-standings-section .table-wrap {
+    margin-inline: -14px;
+    width: calc(100% + 28px);
+  }
+
+  .home-standings-section table {
+    min-width: 520px;
+  }
+
+  .fixture-match strong {
+    font-size: 15px;
+  }
+
+  .playoff-team {
+    min-height: 42px;
+    font-size: 13px;
+  }
+}
