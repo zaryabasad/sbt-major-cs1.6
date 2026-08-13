@@ -41,60 +41,40 @@ function Teams() {
   }
 
   const saveTeam = async (team) => {
-    try {
-      const name = team.name?.trim()
-      const owner = team.owner?.trim()
+  const normalizedName = team.name.trim().toLowerCase()
 
-      if (!name) {
-        toast.error('Team name is required')
-        return
-      }
+  const hasDuplicate = teams.some(
+    (item) =>
+      item.id !== team.id &&
+      item.name.trim().toLowerCase() === normalizedName
+  )
 
-      if (!owner) {
-        toast.error('Owner name is required')
-        return
-      }
-
-      const duplicate = teams.some(
-        (item) =>
-          item.id !== team.id &&
-          item.name?.trim().toLowerCase() === name.toLowerCase()
-      )
-
-      if (duplicate) {
-        toast.error('A team with this name already exists')
-        return
-      }
-
-      const normalizedTeam = {
-        ...team,
-        name,
-        owner,
-        startingBudget: Number(
-          team.startingBudget ??
-            team.starting_budget ??
-            team.budget ??
-            100000
-        ),
-      }
-
-      console.log('SAVE TEAM:', normalizedTeam)
-
-      if (selectedTeam) {
-        await updateTeam(normalizedTeam)
-        toast.success('Team updated successfully')
-      } else {
-        await addTeam(normalizedTeam)
-        toast.success('Team created successfully')
-      }
-
-      setIsModalOpen(false)
-      setSelectedTeam(null)
-    } catch (error) {
-      console.error('SAVE TEAM ERROR:', error)
-      toast.error(error?.message || 'Failed to save team')
-    }
+  if (hasDuplicate) {
+    toast.error('A team with this name already exists')
+    return
   }
+
+  const normalizedTeam = {
+    ...team,
+    name: team.name.trim(),
+    owner: team.owner.trim(),
+  }
+
+  try {
+    if (selectedTeam) {
+      await updateTeam(normalizedTeam)
+      toast.success('Team updated successfully')
+    } else {
+      await addTeam(normalizedTeam)
+      toast.success('Team created successfully')
+    }
+
+    setIsModalOpen(false)
+  } catch (error) {
+    console.error('SAVE TEAM ERROR:', error)
+    toast.error(error.message || 'Failed to save team')
+  }
+}
 
   const confirmDelete = async () => {
     if (!teamToDelete) return
