@@ -18,7 +18,10 @@ import { useTeams } from '../context/TeamsContext'
 
 import { formatCurrency } from '../utils/formatCurrency'
 
-function Teams() {
+
+  function Teams() {
+  console.log("🔥 TEAMS PAGE LOADED")
+
   const { teams, addTeam, updateTeam, deleteTeam } = useTeams()
   const { user } = useAuth()
   const { players } = usePlayers()
@@ -40,8 +43,8 @@ function Teams() {
     setIsModalOpen(true)
   }
 
-  const saveTeam = async (team) => {
-  const normalizedName = team.name.trim().toLowerCase()
+const saveTeam = async (team) => {
+  console.log("🔥 SAVE TEAM FUNCTION CALLED", team)
 
   const hasDuplicate = teams.some(
     (item) =>
