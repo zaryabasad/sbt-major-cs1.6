@@ -40,7 +40,7 @@ const openEdit = (team) => {
   setIsModalOpen(true)
 }
 
-const saveTeam = (team) => {
+const saveTeam = async (team) => {
   const normalizedName = team.name.trim().toLowerCase()
 
   const hasDuplicate = teams.some(
@@ -60,15 +60,32 @@ const saveTeam = (team) => {
     owner: team.owner.trim(),
   }
 
-  if (selectedTeam) {
-    updateTeam(normalizedTeam)
-    toast.success('Team updated successfully')
-  } else {
-    addTeam(normalizedTeam)
-    toast.success('Team created successfully')
-  }
+  console.log('SAVE TEAM CALLED:', normalizedTeam)
 
-  setIsModalOpen(false)
+  try {
+    if (selectedTeam) {
+      await updateTeam(normalizedTeam)
+      toast.success('Team updated successfully')
+    } else {
+      await addTeam(normalizedTeam)
+      toast.success('Team created successfully')
+    }
+    setTeams((current) => [
+  ...current,
+  mapSupabaseTeam(data),
+])
+
+return data
+
+    setIsModalOpen(false)
+  } catch (error) {
+    console.error('SAVE TEAM ERROR:', error)
+    toast.error(error.message || 'Failed to save team')
+  }
+}
+if (error) {
+  console.error('TEAM INSERT ERROR:', error)
+  throw error
 }
 
 const confirmDelete = () => {
@@ -105,7 +122,7 @@ const getRoster = (teamId) =>
 
   const remainingBudget = Math.max(
     0,
-    Number(team.startingBudget ?? team.budget ?? 100000) -
+    Number(team.startingBudget ?? team.budget ?? 1000) -
       roster.reduce(
         (total, player) =>
           total + Number(player.soldPrice ?? player.basePrice ?? 0),
