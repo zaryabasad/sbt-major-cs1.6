@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+
 import {
   FaEdit,
   FaPlus,
@@ -18,218 +19,273 @@ import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
 
 import { formatCurrency } from '../utils/formatCurrency'
+
 function Teams() {
   const { teams, addTeam, updateTeam, deleteTeam } = useTeams()
   const { user } = useAuth()
+  const { players } = usePlayers()
 
   const isAdmin = Boolean(user)
-const { players } = usePlayers()
 
-const [selectedTeam, setSelectedTeam] = useState(null)
-const [viewTeam, setViewTeam] = useState(null)
+  const [selectedTeam, setSelectedTeam] = useState(null)
+  const [viewTeam, setViewTeam] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [teamToDelete, setTeamToDelete] = useState(null)
 
-const [isModalOpen, setIsModalOpen] = useState(false)
-const [teamToDelete, setTeamToDelete] = useState(null)
-const openCreate = () => {
-  setSelectedTeam(null)
-  setIsModalOpen(true)
-}
-
-const openEdit = (team) => {
-  setSelectedTeam(team)
-  setIsModalOpen(true)
-}
-
-const saveTeam = async (team) => {
-  const normalizedName = team.name.trim().toLowerCase()
-
-  const hasDuplicate = teams.some(
-    (item) =>
-      item.id !== team.id &&
-      item.name.trim().toLowerCase() === normalizedName
-  )
-
-  if (hasDuplicate) {
-    toast.error('A team with this name already exists')
-    return
+  const openCreate = () => {
+    setSelectedTeam(null)
+    setIsModalOpen(true)
   }
 
-  const normalizedTeam = {
-    ...team,
-    name: team.name.trim(),
-    owner: team.owner.trim(),
+  const openEdit = (team) => {
+    setSelectedTeam(team)
+    setIsModalOpen(true)
   }
 
-  console.log('SAVE TEAM CALLED:', normalizedTeam)
+  const saveTeam = async (team) => {
+    const normalizedName = team.name.trim().toLowerCase()
 
-  try {
-    if (selectedTeam) {
-      await updateTeam(normalizedTeam)
-      toast.success('Team updated successfully')
-    } else {
-      await addTeam(normalizedTeam)
-      toast.success('Team created successfully')
+    const hasDuplicate = teams.some(
+      (item) =>
+        item.id !== team.id &&
+        item.name?.trim().toLowerCase() === normalizedName
+    )
+
+    if (hasDuplicate) {
+      toast.error('A team with this name already exists')
+      return
     }
-    setTeams((current) => [
-  ...current,
-  mapSupabaseTeam(data),
-])
 
-return data
+    const normalizedTeam = {
+      ...team,
+      name: team.name.trim(),
+      owner: team.owner.trim(),
+      startingBudget: Number(
+        team.startingBudget ??
+        team.starting_budget ??
+        team.budget ??
+        100000
+      ),
+    }
 
-    setIsModalOpen(false)
-  } catch (error) {
-    console.error('SAVE TEAM ERROR:', error)
-    toast.error(error.message || 'Failed to save team')
+    console.log('SAVE TEAM CALLED:', normalizedTeam)
+
+    try {
+      if (selectedTeam) {
+        await updateTeam(normalizedTeam)
+        toast.success('Team updated successfully')
+      } else {
+        await addTeam(normalizedTeam)
+        toast.success('Team created successfully')
+      }
+
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error('SAVE TEAM ERROR:', error)
+      toast.error(error.message || 'Failed to save team')
+    }
   }
-}
-if (error) {
-  console.error('TEAM INSERT ERROR:', error)
-  throw error
-}
 
-const confirmDelete = () => {
-  deleteTeam(teamToDelete.id)
-  toast.success(`${teamToDelete.name} deleted`)
-  setTeamToDelete(null)
-}
+  const confirmDelete = async () => {
+    if (!teamToDelete) return
 
-const getRoster = (teamId) =>
-  players.filter(
-    (player) =>
-      player.status === 'Sold' &&
-      player.teamId === teamId
-  )
+    try {
+      await deleteTeam(teamToDelete.id)
+      toast.success(`${teamToDelete.name} deleted`)
+      setTeamToDelete(null)
+    } catch (error) {
+      console.error('DELETE TEAM ERROR:', error)
+      toast.error(error.message || 'Failed to delete team')
+    }
+  }
 
-  return <section className="teams-page"><header className="teams-heading"><div><p className="eyebrow">SBT Major · Tournament Roster</p><h1>Teams</h1><p>Build and manage every competing squad in the Major.</p></div><button className="button button-primary" onClick={openCreate}><FaPlus /> {isAdmin && (
-  <button
-    className="button button-primary"
-    onClick={openCreate}
-  >
-    <FaPlus />
-    Create Team
-  </button>
-)}</button></header>{teams.length === 0 ? <section className="empty-teams glass-card"><FaShieldAlt /><h2>No teams created yet</h2><p>Add the first team to begin preparing the SBT MAJOR roster.</p><button className="button button-primary" onClick={openCreate}><FaPlus /> {isAdmin && (
-  <button
-    className="button button-primary"
-    onClick={openCreate}
-  >
-    <FaPlus />
-    Create First Team
-  </button>
-)}</button></section> : <div className="teams-grid">{teams.map((team) => {
-  const roster = getRoster(team.id)
-
-  const remainingBudget = Math.max(
-    0,
-    Number(team.startingBudget ?? team.budget ?? 1000) -
-      roster.reduce(
-        (total, player) =>
-          total + Number(player.soldPrice ?? player.basePrice ?? 0),
-        0
-      )
-  )
+  const getRoster = (teamId) => {
+    return players.filter(
+      (player) =>
+        player.status === 'Sold' &&
+        player.teamId === teamId
+    )
+  }
 
   return (
-    <article
-      className="team-card glass-card"
-      key={team.id}
-      style={{ "--team-color": team.color }}
-      onClick={() => setViewTeam(team)}
-    >
-      <div className="team-card-top">
-        <div className="team-logo">
-          {team.logo ? (
-            <img
-              src={team.logo}
-              alt={`${team.name} logo`}
-            />
-          ) : (
-            <FaShieldAlt />
-          )}
+    <section className="page-section">
+
+      {/* HEADER */}
+      <div className="page-header">
+
+        <div>
+          <p className="eyebrow">
+            SBT MAJOR · TOURNAMENT ROSTER
+          </p>
+
+          <h1>TEAMS</h1>
+
+          <p>
+            Build and manage every competing squad in the Major.
+          </p>
         </div>
 
         {isAdmin && (
-  <div className="team-actions">
-    <button
-      onClick={(e) => {
-        e.stopPropagation()
-        openEdit(team)
-      }}
-      aria-label={`Edit ${team.name}`}
-    >
-      <FaEdit />
-    </button>
-
-    <button
-      onClick={(e) => {
-        e.stopPropagation()
-        setTeamToDelete(team)
-      }}
-      aria-label={`Delete ${team.name}`}
-    >
-      <FaTrash />
-    </button>
-  </div>
-)}
-      </div>
-
-      <h2>{team.name}</h2>
-
-      <p className="team-owner">
-        Owner:
-        <strong> {team.owner}</strong>
-      </p>
-
-      <div className="team-details">
-
-        <div>
-          <span>Remaining Budget</span>
-          <strong>
-            {formatCurrency(remainingBudget)}
-          </strong>
-        </div>
-
-        <div>
-          <FaUsers />
-          <span>Players</span>
-          <strong>{roster.length}</strong>
-        </div>
+          <button
+            className="button button-primary"
+            onClick={openCreate}
+          >
+            <FaPlus />
+            Create Team
+          </button>
+        )}
 
       </div>
 
-    </article>
-  )
-})}
-        </div>
-        }
+      {/* TEAM GRID */}
+      <div className="team-grid">
 
+        {teams.map((team) => {
+          const roster = getRoster(team.id)
+
+          const remainingBudget = Math.max(
+            0,
+            Number(
+              team.startingBudget ??
+              team.starting_budget ??
+              team.budget ??
+              100000
+            ) -
+              roster.reduce(
+                (total, player) =>
+                  total +
+                  Number(
+                    player.soldPrice ??
+                    player.basePrice ??
+                    0
+                  ),
+                0
+              )
+          )
+
+          return (
+            <article
+              className="team-card glass-card"
+              key={team.id}
+              style={{
+                '--team-color': team.color,
+              }}
+              onClick={() => setViewTeam(team)}
+            >
+
+              {/* LOGO */}
+              <div className="team-card-top">
+
+                <div className="team-logo">
+
+                  {team.logo ? (
+                    <img
+                      src={team.logo}
+                      alt={`${team.name} logo`}
+                    />
+                  ) : (
+                    <FaShieldAlt />
+                  )}
+
+                </div>
+
+                {/* ADMIN ACTIONS */}
+                {isAdmin && (
+                  <div className="team-actions">
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(team)
+                      }}
+                      aria-label={`Edit ${team.name}`}
+                    >
+                      <FaEdit />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setTeamToDelete(team)
+                      }}
+                      aria-label={`Delete ${team.name}`}
+                    >
+                      <FaTrash />
+                    </button>
+
+                  </div>
+                )}
+
+              </div>
+
+              {/* TEAM INFO */}
+              <h2>{team.name}</h2>
+
+              <p className="team-owner">
+                Owner:
+                <strong> {team.owner}</strong>
+              </p>
+
+              {/* DETAILS */}
+              <div className="team-details">
+
+                <div>
+                  <span>REMAINING BUDGET</span>
+
+                  <strong>
+                    {formatCurrency(remainingBudget)}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>PLAYERS</span>
+
+                  <strong>
+                    <FaUsers />
+                    {roster.length}
+                  </strong>
+                </div>
+
+              </div>
+
+            </article>
+          )
+        })}
+
+      </div>
+
+      {/* CREATE / EDIT MODAL */}
       {isModalOpen && (
-          <TeamModal
-            team={selectedTeam}
-            onClose={() => setIsModalOpen(false)}
-            onSave={saveTeam}
-          />
-        )}
+        <TeamModal
+          team={selectedTeam}
+          onClose={() => setIsModalOpen(false)}
+          onSave={saveTeam}
+        />
+      )}
 
-        {teamToDelete && (
-          <ConfirmDialog
-            title="Delete this team?"
-            message={`This will permanently remove ${teamToDelete.name} from the tournament roster.`}
-            onCancel={() => setTeamToDelete(null)}
-            onConfirm={confirmDelete}
-          />
-        )}
+      {/* DELETE CONFIRMATION */}
+      {teamToDelete && (
+        <ConfirmDialog
+          title="Delete this team?"
+          message={`This will permanently remove ${teamToDelete.name} from the tournament roster.`}
+          onCancel={() => setTeamToDelete(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
 
-        {viewTeam && (
-          <TeamDetailsModal
-            team={viewTeam}
-            players={players}
-            onClose={() => setViewTeam(null)}
-          />
-        )}
-      </section>
-  
+      {/* TEAM DETAILS */}
+      {viewTeam && (
+        <TeamDetailsModal
+          team={viewTeam}
+          players={players}
+          onClose={() => setViewTeam(null)}
+        />
+      )}
+
+    </section>
+  )
 }
 
 export default Teams
