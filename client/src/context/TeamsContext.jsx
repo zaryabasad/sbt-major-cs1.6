@@ -86,30 +86,29 @@ export function TeamsProvider({ children }) {
 
   // ADD TEAM
   const addTeam = async (team) => {
+  console.log('ADDING TEAM:', team)
+
   const newTeam = {
     id: crypto.randomUUID(),
     name: team.name,
     owner: team.owner,
-    logo: team.logo ?? '',
-    color: team.color ?? '',
-    starting_budget: Number(
-      team.startingBudget ??
-      team.starting_budget ??
-      team.budget ??
-      1000
-    ),
-    created_at: new Date().toISOString(),
+    logo: team.logo || '',
+    color: team.color || '',
+    starting_budget: Number(team.startingBudget || 1000),
   }
+
+  console.log('SUPABASE INSERT:', newTeam)
 
   const { data, error } = await supabase
     .from('teams')
-    .insert(newTeam)
+    .insert([newTeam])
     .select()
     .single()
 
+  console.log('SUPABASE RESPONSE:', { data, error })
+
   if (error) {
-    console.error('Supabase add team error:', error)
-    alert(`Team save failed: ${error.message}`)
+    alert(`ERROR: ${error.message}`)
     return
   }
 
