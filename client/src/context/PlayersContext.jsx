@@ -12,18 +12,51 @@ const PlayersContext = createContext(null)
 
 const STORAGE_KEY = 'sbt-major-players'
 
+// ==========================================
+// SUPABASE → FRONTEND
+// ==========================================
+
 function mapSupabasePlayer(player) {
   return {
     ...player,
+
     realName: player.real_name || '',
+
     nickname: player.nickname || '',
+
     age: player.age ?? '',
+
     country: player.country || '',
+
     photo: player.photo || '',
-    status: player.status === 'Sold' ? 'Sold' : 'Unsold',
-    teamId: player.team_id || '',
+
+    status:
+      player.status === 'Sold'
+        ? 'Sold'
+        : 'Unsold',
+
+    teamId:
+      player.team_id || '',
+
+    soldPrice:
+      Number(
+        player.sold_price ??
+        player.soldPrice ??
+        0
+      ),
+
+    basePrice:
+      Number(
+        player.base_price ??
+        player.basePrice ??
+        0
+      ),
   }
 }
+
+// ==========================================
+// LOCAL STORAGE
+// ==========================================
 
 function readLocalPlayers() {
   try {
@@ -31,61 +64,139 @@ function readLocalPlayers() {
       localStorage.getItem(STORAGE_KEY) || '[]'
     )
 
-    if (!Array.isArray(stored)) return []
+    if (!Array.isArray(stored)) {
+      return []
+    }
 
     return stored.map((player) => ({
       ...player,
-      realName: player.realName || player.real_name || '',
-      nickname: player.nickname || '',
-      age: player.age ?? '',
-      country: player.country || '',
-      photo: player.photo || '',
-      status: player.status === 'Sold' ? 'Sold' : 'Unsold',
-      teamId: player.teamId || player.team_id || '',
+
+      realName:
+        player.realName ||
+        player.real_name ||
+        '',
+
+      nickname:
+        player.nickname ||
+        '',
+
+      age:
+        player.age ?? '',
+
+      country:
+        player.country ||
+        '',
+
+      photo:
+        player.photo ||
+        '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      teamId:
+        player.teamId ||
+        player.team_id ||
+        '',
+
+      soldPrice:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
+
+      basePrice:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
     }))
   } catch {
     return []
   }
 }
 
-export function PlayersProvider({ children }) {
-  const [players, setPlayers] = useState(readLocalPlayers)
-  const [loading, setLoading] = useState(true)
+// ==========================================
+// PROVIDER
+// ==========================================
 
-  // ================================
-  // LOAD PLAYERS FROM SUPABASE
-  // ================================
+export function PlayersProvider({
+  children,
+}) {
+  const [players, setPlayers] = useState(
+    readLocalPlayers
+  )
+
+  const [loading, setLoading] =
+    useState(true)
+
+  // ========================================
+  // LOAD FROM SUPABASE
+  // ========================================
+
   useEffect(() => {
     let cancelled = false
 
     async function loadPlayers() {
-      console.log('==============================')
-      console.log('LOADING PLAYERS FROM SUPABASE...')
+      console.log(
+        '=============================='
+      )
+
+      console.log(
+        'LOADING PLAYERS FROM SUPABASE...'
+      )
 
       setLoading(true)
 
-      const { data, error } = await supabase
+      const {
+        data,
+        error,
+      } = await supabase
         .from('players')
         .select('*')
-        .order('created_at', { ascending: true })
+        .order('created_at', {
+          ascending: true,
+        })
 
-      console.log('SUPABASE PLAYERS RESULT:', { data, error })
+      console.log(
+        'SUPABASE PLAYERS RESULT:',
+        {
+          data,
+          error,
+        }
+      )
 
-      if (cancelled) return
-
-      if (error) {
-        console.error('PLAYERS LOAD ERROR:', error)
-        setLoading(false)
+      if (cancelled) {
         return
       }
 
-      if (data) {
-        setPlayers(data.map(mapSupabasePlayer))
+      if (error) {
+        console.error(
+          'PLAYERS LOAD ERROR:',
+          error
+        )
+
+        setLoading(false)
+
+        return
       }
+
+      setPlayers(
+        (data || []).map(
+          mapSupabasePlayer
+        )
+      )
 
       setLoading(false)
 
-      console.log('PLAYERS LOADED:', data?.length || 0)
+      console.log(
+        'PLAYERS LOADED:',
+        data?.length || 0
+      )
     }
 
     loadPlayers()
@@ -95,9 +206,10 @@ export function PlayersProvider({ children }) {
     }
   }, [])
 
-  // ================================
+  // ========================================
   // LOCAL STORAGE BACKUP
-  // ================================
+  // ========================================
+
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -105,141 +217,284 @@ export function PlayersProvider({ children }) {
     )
   }, [players])
 
-  // ================================
+  // ========================================
   // ADD PLAYER
-  // ================================
+  // ========================================
+
   const addPlayer = async (player) => {
-    console.log('==============================')
-    console.log('ADD PLAYER STARTED')
-    console.log('PLAYER RECEIVED:', player)
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'ADD PLAYER STARTED'
+    )
+
+    console.log(
+      'PLAYER RECEIVED:',
+      player
+    )
 
     const newPlayer = {
-      real_name: player.realName || '',
-      nickname: player.nickname || '',
+      real_name:
+        player.realName || '',
+
+      nickname:
+        player.nickname || '',
+
       age:
         player.age === '' ||
         player.age === null ||
         player.age === undefined
           ? null
           : Number(player.age),
-      country: player.country || '',
-      photo: player.photo || '',
-      status: player.status === 'Sold' ? 'Sold' : 'Unsold',
-      team_id: player.teamId || null,
+
+      country:
+        player.country || '',
+
+      photo:
+        player.photo || '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      team_id:
+        player.teamId || null,
+
+      base_price:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
+
+      sold_price:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
     }
 
-    console.log('INSERTING PLAYER:', newPlayer)
+    console.log(
+      'INSERTING PLAYER:',
+      newPlayer
+    )
 
-    const { data, error } = await supabase
+    const {
+      data,
+      error,
+    } = await supabase
       .from('players')
       .insert(newPlayer)
       .select()
       .single()
 
-    console.log('SUPABASE INSERT PLAYER RESULT:', {
-      data,
-      error,
-    })
+    console.log(
+      'SUPABASE INSERT PLAYER RESULT:',
+      {
+        data,
+        error,
+      }
+    )
 
     if (error) {
-      console.error('PLAYER INSERT ERROR:', error)
+      console.error(
+        'PLAYER INSERT ERROR:',
+        error
+      )
+
       throw error
     }
 
-    const mappedPlayer = mapSupabasePlayer(data)
+    const mappedPlayer =
+      mapSupabasePlayer(data)
 
-    setPlayers((current) => [
-      ...current,
-      mappedPlayer,
-    ])
+    setPlayers(
+      (current) => [
+        ...current,
+        mappedPlayer,
+      ]
+    )
 
-    console.log('PLAYER SAVED SUCCESSFULLY:', mappedPlayer)
+    console.log(
+      'PLAYER SAVED SUCCESSFULLY:',
+      mappedPlayer
+    )
 
     return mappedPlayer
   }
 
-  // ================================
+  // ========================================
   // UPDATE PLAYER
-  // ================================
+  // ========================================
+
   const updatePlayer = async (player) => {
-    console.log('==============================')
-    console.log('UPDATE PLAYER STARTED')
-    console.log('PLAYER:', player)
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'UPDATE PLAYER STARTED'
+    )
+
+    console.log(
+      'PLAYER:',
+      player
+    )
 
     const updatedPlayer = {
-      real_name: player.realName || '',
-      nickname: player.nickname || '',
+      real_name:
+        player.realName || '',
+
+      nickname:
+        player.nickname || '',
+
       age:
         player.age === '' ||
         player.age === null ||
         player.age === undefined
           ? null
           : Number(player.age),
-      country: player.country || '',
-      photo: player.photo || '',
-      status: player.status === 'Sold' ? 'Sold' : 'Unsold',
-      team_id: player.teamId || null,
+
+      country:
+        player.country || '',
+
+      photo:
+        player.photo || '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      team_id:
+        player.teamId ||
+        player.team_id ||
+        null,
+
+      base_price:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
+
+      sold_price:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
     }
 
-    const { data, error } = await supabase
+    console.log(
+      'UPDATING PLAYER IN SUPABASE:',
+      updatedPlayer
+    )
+
+    const {
+      data,
+      error,
+    } = await supabase
       .from('players')
       .update(updatedPlayer)
       .eq('id', player.id)
       .select()
       .single()
 
-    console.log('SUPABASE UPDATE PLAYER RESULT:', {
-      data,
-      error,
-    })
+    console.log(
+      'SUPABASE UPDATE PLAYER RESULT:',
+      {
+        data,
+        error,
+      }
+    )
 
     if (error) {
-      console.error('PLAYER UPDATE ERROR:', error)
+      console.error(
+        'PLAYER UPDATE ERROR:',
+        error
+      )
+
       throw error
     }
 
-    const mappedPlayer = mapSupabasePlayer(data)
+    const mappedPlayer =
+      mapSupabasePlayer(data)
 
-    setPlayers((current) =>
-      current.map((item) =>
-        item.id === player.id
-          ? mappedPlayer
-          : item
-      )
+    setPlayers(
+      (current) =>
+        current.map((item) =>
+          item.id === player.id
+            ? mappedPlayer
+            : item
+        )
+    )
+
+    console.log(
+      'PLAYER UPDATED SUCCESSFULLY:',
+      mappedPlayer
     )
 
     return mappedPlayer
   }
 
-  // ================================
+  // ========================================
   // DELETE PLAYER
-  // ================================
-  const deletePlayer = async (id) => {
-    console.log('==============================')
-    console.log('DELETE PLAYER STARTED:', id)
+  // ========================================
 
-    const { error } = await supabase
+  const deletePlayer = async (id) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'DELETE PLAYER STARTED:',
+      id
+    )
+
+    const {
+      error,
+    } = await supabase
       .from('players')
       .delete()
       .eq('id', id)
 
-    console.log('SUPABASE DELETE PLAYER RESULT:', {
-      error,
-    })
+    console.log(
+      'SUPABASE DELETE PLAYER RESULT:',
+      {
+        error,
+      }
+    )
 
     if (error) {
-      console.error('PLAYER DELETE ERROR:', error)
+      console.error(
+        'PLAYER DELETE ERROR:',
+        error
+      )
+
       throw error
     }
 
-    setPlayers((current) =>
-      current.filter(
-        (player) => player.id !== id
-      )
+    setPlayers(
+      (current) =>
+        current.filter(
+          (player) =>
+            player.id !== id
+        )
     )
 
-    console.log('PLAYER DELETED SUCCESSFULLY')
+    console.log(
+      'PLAYER DELETED SUCCESSFULLY'
+    )
   }
+
+  // ========================================
+  // CONTEXT VALUE
+  // ========================================
 
   const value = useMemo(
     () => ({
@@ -249,16 +504,27 @@ export function PlayersProvider({ children }) {
       updatePlayer,
       deletePlayer,
     }),
-    [players, loading]
+    [
+      players,
+      loading,
+    ]
   )
 
   return (
-    <PlayersContext.Provider value={value}>
+    <PlayersContext.Provider
+      value={value}
+    >
       {children}
     </PlayersContext.Provider>
   )
 }
 
+// ==========================================
+// HOOK
+// ==========================================
+
 export function usePlayers() {
-  return useContext(PlayersContext)
+  return useContext(
+    PlayersContext
+  )
 }
