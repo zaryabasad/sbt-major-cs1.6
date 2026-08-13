@@ -87,6 +87,8 @@ export function TeamsProvider({ children }) {
   // ADD TEAM
   const addTeam = async (team) => {
   const newTeam = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
     name: team.name,
     owner: team.owner,
     logo: team.logo || '',
@@ -95,7 +97,7 @@ export function TeamsProvider({ children }) {
       team.startingBudget ??
       team.starting_budget ??
       team.budget ??
-      100000
+      1000
     ),
   }
 
@@ -103,7 +105,7 @@ export function TeamsProvider({ children }) {
 
   const { data, error } = await supabase
     .from('teams')
-    .insert(newTeam)
+    .insert([newTeam])
     .select()
     .single()
 
@@ -111,7 +113,7 @@ export function TeamsProvider({ children }) {
 
   if (error) {
     console.error('TEAM INSERT ERROR:', error)
-    alert(error.message)
+    alert(`Team save failed: ${error.message}`)
     return
   }
 
@@ -133,7 +135,7 @@ const updateTeam = async (team) => {
         team.startingBudget ??
         team.starting_budget ??
         team.budget ??
-        100000
+        1000
       ),
     })
     .eq('id', team.id)
