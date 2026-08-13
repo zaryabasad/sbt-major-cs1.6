@@ -1,16 +1,10 @@
 import { useState } from 'react'
-import {
-  Link,
-  Navigate,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { FaLock, FaUser } from 'react-icons/fa'
 import { useAuth } from '../context/AuthContext'
 
 function Login() {
   const { user, login, loading } = useAuth()
-
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -25,7 +19,7 @@ function Login() {
   if (loading) {
     return (
       <main className="login-page">
-        <p>Checking authentication...</p>
+        <p>Loading...</p>
       </main>
     )
   }
@@ -45,11 +39,10 @@ function Login() {
       credentials.password
     )
 
+    setIsSubmitting(false)
+
     if (!result.success) {
-      setError(
-        'Invalid email or password. Please check your credentials.'
-      )
-      setIsSubmitting(false)
+      setError(result.error || 'Invalid email or password.')
       return
     }
 
@@ -66,9 +59,7 @@ function Login() {
       </Link>
 
       <section className="login-card">
-        <p className="eyebrow">
-          Control Center
-        </p>
+        <p className="eyebrow">Control Center</p>
 
         <h1>Admin Login</h1>
 
@@ -84,6 +75,7 @@ function Login() {
               <FaUser />
 
               <input
+                type="email"
                 value={credentials.email}
                 onChange={(event) =>
                   setCredentials({
@@ -91,7 +83,6 @@ function Login() {
                     email: event.target.value,
                   })
                 }
-                type="email"
                 autoComplete="email"
                 placeholder="Enter admin email"
                 required
@@ -106,6 +97,7 @@ function Login() {
               <FaLock />
 
               <input
+                type="password"
                 value={credentials.password}
                 onChange={(event) =>
                   setCredentials({
@@ -113,7 +105,6 @@ function Login() {
                     password: event.target.value,
                   })
                 }
-                type="password"
                 autoComplete="current-password"
                 placeholder="Enter password"
                 required
@@ -122,10 +113,7 @@ function Login() {
           </label>
 
           {error && (
-            <p
-              className="login-error"
-              role="alert"
-            >
+            <p className="login-error" role="alert">
               {error}
             </p>
           )}
