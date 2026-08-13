@@ -1,88 +1,122 @@
-import { FaTimes, FaShieldAlt, FaUsers } from 'react-icons/fa'
+import { FaShieldAlt, FaTimes, FaUsers } from 'react-icons/fa'
 import { formatCurrency } from '../utils/formatCurrency'
 
-function TeamDetailsModal({ team, players, onClose }) {
-  if (!team) return null
-
+function TeamDetailsModal({ team, players = [], onClose }) {
   const roster = players.filter(
     (player) =>
       player.status === 'Sold' &&
-      player.teamId === team.id
+      String(player.teamId || player.team_id || '') === String(team.id)
+  )
+
+  const getSoldPrice = (player) => {
+    const value =
+      player.soldPrice ??
+      player.sold_price ??
+      player.soldprice ??
+      0
+
+    const number = Number(value)
+
+    return Number.isFinite(number) ? number : 0
+  }
+
+  const startingBudget = Number(
+    team.startingBudget ??
+    team.starting_budget ??
+    team.budget ??
+    100000
   )
 
   const spent = roster.reduce(
-    (total, player) =>
-      total + Number(player.soldPrice || 0),
+    (total, player) => total + getSoldPrice(player),
     0
   )
 
-  const remaining = Math.max(
+  const remainingBudget = Math.max(
     0,
-    Number(team.startingBudget ?? 100000) - spent
+    startingBudget - spent
   )
 
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onMouseDown={onClose}
     >
       <section
-        className="team-modal"
-        onClick={(e) => e.stopPropagation()}
+        className="team-modal team-details-modal"
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <header>
           <div>
-            <h2>{team.name}</h2>
-            <p>Owner: {team.owner}</p>
+            <p className="eyebrow">TEAM DETAILS</p>
+
+            <h2>
+              {team.name}
+            </h2>
+
+            <p>
+              Owner: <strong>{team.owner}</strong>
+            </p>
           </div>
 
           <button
             className="icon-button"
+            type="button"
             onClick={onClose}
+            aria-label="Close"
           >
             <FaTimes />
           </button>
         </header>
 
-        <div className="glass-card" style={{ marginBottom: 20 }}>
-          <h3>
-            <FaShieldAlt /> Remaining Budget
-          </h3>
+        <div className="team-detail-budget">
+          <div>
+            <FaShieldAlt />
 
-          <h2>{formatCurrency(remaining)}</h2>
+            <strong>
+              Remaining Budget
+            </strong>
+          </div>
+
+          <h3>
+            {formatCurrency(remainingBudget)}
+          </h3>
         </div>
 
-        <div className="glass-card">
+        <div className="team-detail-players">
           <h3>
-            <FaUsers /> Players ({roster.length})
+            <FaUsers />
+            Players ({roster.length})
           </h3>
 
           {roster.length === 0 ? (
-            <p>No players purchased yet.</p>
+            <p className="empty-state-text">
+              No players purchased yet.
+            </p>
           ) : (
-            roster.map((player) => (
-              <div
-                key={player.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  borderBottom:
-                    '1px solid rgba(255,255,255,.08)',
-                }}
-              >
-                <div>
-                  <strong>{player.nickname}</strong>
-                  <br />
-                  <small>{player.role}</small>
-                </div>
+            roster.map((player) => {
+              const soldPrice = getSoldPrice(player)
 
-                <strong>
-                  {formatCurrency(player.soldPrice)}
-                </strong>
-              </div>
-            ))
+              return (
+                <div
+                  className="team-player-row"
+                  key={player.id}
+                >
+                  <span>
+                    {player.nickname ||
+                      player.playerName ||
+                      player.realName ||
+                      'Player'}
+                  </span>
+
+                  <strong>
+                    {formatCurrency(soldPrice)}
+                  </strong>
+                </div>
+              )
+            })
           )}
         </div>
       </section>
