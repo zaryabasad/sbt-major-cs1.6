@@ -16,18 +16,22 @@ const STORAGE_KEY = 'sbt-major-players'
 // SUPABASE → FRONTEND
 // ==========================================
 
+function safeNumber(value, fallback = 0) {
+  const number = Number(value)
+
+  return Number.isFinite(number)
+    ? number
+    : fallback
+}
+
 function mapSupabasePlayer(player) {
   return {
     ...player,
 
     realName: player.real_name || '',
-
     nickname: player.nickname || '',
-
     age: player.age ?? '',
-
     country: player.country || '',
-
     photo: player.photo || '',
 
     status:
@@ -35,22 +39,17 @@ function mapSupabasePlayer(player) {
         ? 'Sold'
         : 'Unsold',
 
-    teamId:
-      player.team_id || '',
+    teamId: player.team_id || '',
 
-    soldPrice:
-      Number(
-        player.sold_price ??
-        player.soldPrice ??
-        0
-      ),
+    basePrice: safeNumber(
+      player.base_price ?? player.basePrice,
+      0
+    ),
 
-    basePrice:
-      Number(
-        player.base_price ??
-        player.basePrice ??
-        0
-      ),
+    soldPrice: safeNumber(
+      player.sold_price ?? player.soldPrice,
+      0
+    ),
   }
 }
 
