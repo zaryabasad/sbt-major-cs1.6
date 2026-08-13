@@ -86,29 +86,32 @@ export function TeamsProvider({ children }) {
 
   // ADD TEAM
   const addTeam = async (team) => {
-  console.log('ADDING TEAM:', team)
-
   const newTeam = {
-    id: crypto.randomUUID(),
     name: team.name,
     owner: team.owner,
     logo: team.logo || '',
     color: team.color || '',
-    starting_budget: Number(team.startingBudget || 1000),
+    starting_budget: Number(
+      team.startingBudget ??
+      team.starting_budget ??
+      team.budget ??
+      100000
+    ),
   }
 
-  console.log('SUPABASE INSERT:', newTeam)
+  console.log('INSERTING TEAM:', newTeam)
 
   const { data, error } = await supabase
     .from('teams')
-    .insert([newTeam])
+    .insert(newTeam)
     .select()
     .single()
 
-  console.log('SUPABASE RESPONSE:', { data, error })
+  console.log('SUPABASE RESULT:', { data, error })
 
   if (error) {
-    alert(`ERROR: ${error.message}`)
+    console.error('TEAM INSERT ERROR:', error)
+    alert(error.message)
     return
   }
 
@@ -118,31 +121,28 @@ export function TeamsProvider({ children }) {
   ])
 }
 
-
 const updateTeam = async (team) => {
-  const updatedTeam = {
-    name: team.name,
-    owner: team.owner,
-    logo: team.logo ?? '',
-    color: team.color ?? '',
-    starting_budget: Number(
-      team.startingBudget ??
-      team.starting_budget ??
-      team.budget ??
-      1000
-    ),
-  }
-
   const { data, error } = await supabase
     .from('teams')
-    .update(updatedTeam)
+    .update({
+      name: team.name,
+      owner: team.owner,
+      logo: team.logo || '',
+      color: team.color || '',
+      starting_budget: Number(
+        team.startingBudget ??
+        team.starting_budget ??
+        team.budget ??
+        100000
+      ),
+    })
     .eq('id', team.id)
     .select()
     .single()
 
   if (error) {
-    console.error('Supabase update team error:', error)
-    alert(`Team update failed: ${error.message}`)
+    console.error('TEAM UPDATE ERROR:', error)
+    alert(error.message)
     return
   }
 
@@ -163,8 +163,8 @@ const deleteTeam = async (id) => {
     .eq('id', id)
 
   if (error) {
-    console.error('Supabase delete team error:', error)
-    alert(`Team delete failed: ${error.message}`)
+    console.error('TEAM DELETE ERROR:', error)
+    alert(error.message)
     return
   }
 
