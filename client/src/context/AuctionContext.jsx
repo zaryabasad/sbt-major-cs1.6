@@ -40,22 +40,30 @@ function readAuction() {
   }
 }
 
+function mapHistory(row) {
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    teamId: row.team_id,
+    amount: Number(row.amount || 0),
+    type: row.type || 'bid',
+    createdAt: row.created_at,
+  }
+}
+
 export function AuctionProvider({ children }) {
   const [auction, setAuction] = useState(readAuction)
-  const [loading, setLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(true)
 
-  // ==========================================
+  // --------------------------------------------------
   // LOAD AUCTION HISTORY FROM SUPABASE
-  // ==========================================
+  // --------------------------------------------------
 
   useEffect(() => {
     let cancelled = false
 
-    async function loadAuctionHistory() {
-      console.log('==============================')
-      console.log('LOADING AUCTION HISTORY...')
-
-      setLoading(true)
+    async function loadHistory() {
+      console.log('LOADING AUCTION HISTORY FROM SUPABASE...')
 
       const { data, error } = await supabase
         .from('auction_history')
@@ -77,33 +85,28 @@ export function AuctionProvider({ children }) {
           error
         )
 
-        setLoading(false)
+        setHistoryLoading(false)
         return
       }
 
       setAuction((current) => ({
         ...current,
-        history: data || [],
+        history: (data || []).map(mapHistory),
       }))
 
-      setLoading(false)
-
-      console.log(
-        'AUCTION HISTORY LOADED:',
-        data?.length || 0
-      )
+      setHistoryLoading(false)
     }
 
-    loadAuctionHistory()
+    loadHistory()
 
     return () => {
       cancelled = true
     }
   }, [])
 
-  // ==========================================
+  // --------------------------------------------------
   // LOCAL STORAGE BACKUP
-  // ==========================================
+  // --------------------------------------------------
 
   useEffect(() => {
     localStorage.setItem(
@@ -112,9 +115,9 @@ export function AuctionProvider({ children }) {
     )
   }, [auction])
 
-  // ==========================================
+  // --------------------------------------------------
   // AUCTION TIMER
-  // ==========================================
+  // --------------------------------------------------
 
   useEffect(() => {
     if (
@@ -126,13 +129,8 @@ export function AuctionProvider({ children }) {
 
     const timer = window.setInterval(() => {
       setAuction((current) => {
-        if (current.timeRemaining <= 1) {
-          window.clearInterval(timer)
-
-          return {
-            ...current,
-            timeRemaining: 0,
-          }
+        if (current.timeRemaining <= 0) {
+          return current
         }
 
         return {
@@ -151,68 +149,80 @@ export function AuctionProvider({ children }) {
     auction.timeRemaining,
   ])
 
-  // ==========================================
+  // --------------------------------------------------
   // SELECT PLAYER
-  // ==========================================
+  // --------------------------------------------------
 
   const selectPlayer = (player) => {
-    console.log('==============================')
-    console.log('SELECT PLAYER FOR AUCTION:', player)
-
-    const basePrice = Number(
-      player.basePrice ??
-        player.base_price ??
-        0
-    )
+    console.log('AUCTION PLAYER SELECTED:', player)
 
     setAuction((current) => ({
       ...current,
+
       currentPlayerId: player.id,
-      highestBid: basePrice,
+
+      highestBid: Number(
+        player.basePrice ??
+        player.base_price ??
+        0
+      ),
+
       highestTeamId: '',
+
       timeRemaining: 300,
     }))
   }
 
-  // ==========================================
+  // --------------------------------------------------
   // REGISTER BID
-  // ==========================================
+  // --------------------------------------------------
 
   const registerBid = async (teamId, amount) => {
-    console.log('==============================')
-    console.log('REGISTER BID')
-    console.log('PLAYER:', auction.currentPlayerId)
-    console.log('TEAM:', teamId)
-    console.log('AMOUNT:', amount)
-
-    if (!auction.currentPlayerId) {
-      console.error('NO CURRENT PLAYER SELECTED')
-      return
-    }
-
     const numericAmount = Number(amount)
 
-    if (!Number.isFinite(numericAmount)) {
-      console.error('INVALID BID AMOUNT')
+    if (!auction.currentPlayerId) {
+      console.error(
+        'Cannot place bid: no player selected'
+      )
+
       return
     }
 
-    if (numericAmount < Number(auction.highestBid)) {
-      console.error('BID IS LOWER THAN CURRENT BID')
+    if (!teamId) {
+      console.error(
+        'Cannot place bid: no team selected'
+      )
+
       return
     }
 
-    const bid = {
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      console.error(
+        'Cannot place bid: invalid amount'
+      )
+
+      return
+    }
+
+    console.log('REGISTERING BID:', {
+      playerId: auction.currentPlayerId,
+      teamId,
+      amount: numericAmount,
+    })
+
+    const historyRow = {
       player_id: auction.currentPlayerId,
       team_id: teamId,
       amount: numericAmount,
+      type: 'bid',
     }
-
-    console.log('INSERTING BID:', bid)
 
     const { data, error } = await supabase
       .from('auction_history')
-      .insert(bid)
+      .insert(historyRow)
       .select()
       .single()
 
@@ -222,132 +232,103 @@ export function AuctionProvider({ children }) {
     })
 
     if (error) {
-      console.error('BID INSERT ERROR:', error)
-      throw error
-    }
+      console.error(
+        'SUPABASE BID ERROR:',
+        error
+      )
 
-    setAuction((current) => ({
-      ...current,
-      highestTeamId: teamId,
-      highestBid: numericAmount,
-      history: [
-        data,
-        ...current.history,
-      ],
-    }))
+      alert(error.message)
 
-    console.log('BID SAVED SUCCESSFULLY')
-
-    return data
-  }
-
-  // ==========================================
-  // RECORD SALE
-  // ==========================================
-
-  const recordSale = async (
-    teamId,
-    amount
-  ) => {
-    console.log('==============================')
-    console.log('RECORD SALE STARTED')
-
-    const playerId =
-      auction.currentPlayerId
-
-    if (!playerId) {
-      console.error('NO CURRENT PLAYER SELECTED')
       return
     }
 
+    const historyItem = mapHistory(data)
+
+    setAuction((current) => ({
+      ...current,
+
+      highestTeamId: teamId,
+
+      highestBid: numericAmount,
+
+      history: [
+        historyItem,
+        ...current.history,
+      ],
+    }))
+  }
+
+  // --------------------------------------------------
+  // RECORD SALE
+  // --------------------------------------------------
+
+  const recordSale = async (teamId, amount) => {
+    const playerId = auction.currentPlayerId
     const numericAmount = Number(amount)
 
-    if (!Number.isFinite(numericAmount)) {
-      console.error('INVALID SALE AMOUNT')
+    if (!playerId) {
+      console.error(
+        'Cannot record sale: no player selected'
+      )
+
       return
     }
 
     if (!teamId) {
-      console.error('NO TEAM SELECTED FOR SALE')
+      console.error(
+        'Cannot record sale: no team selected'
+      )
+
       return
     }
 
-    console.log('PLAYER ID:', playerId)
-    console.log('TEAM ID:', teamId)
-    console.log('SALE AMOUNT:', numericAmount)
-
-    // ------------------------------------------
-    // 1. UPDATE PLAYER
-    // ------------------------------------------
-
-    const { data: updatedPlayer, error: playerError } =
-      await supabase
-        .from('players')
-        .update({
-          status: 'Sold',
-          team_id: teamId,
-          sold_price: numericAmount,
-          sold_at: new Date().toISOString(),
-        })
-        .eq('id', playerId)
-        .select()
-        .single()
-
-    console.log('PLAYER SALE UPDATE RESULT:', {
-      updatedPlayer,
-      playerError,
-    })
-
-    if (playerError) {
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
       console.error(
-        'PLAYER SALE UPDATE ERROR:',
-        playerError
+        'Cannot record sale: invalid amount'
       )
 
-      throw playerError
+      return
     }
 
-    // ------------------------------------------
-    // 2. SAVE SALE IN AUCTION HISTORY
-    // ------------------------------------------
+    console.log('RECORDING SALE:', {
+      playerId,
+      teamId,
+      amount: numericAmount,
+    })
 
-    const saleRecord = {
+    const historyRow = {
       player_id: playerId,
       team_id: teamId,
       amount: numericAmount,
+      type: 'sale',
     }
 
-    console.log(
-      'INSERTING SALE HISTORY:',
-      saleRecord
-    )
-
-    const {
-      data: saleData,
-      error: saleError,
-    } = await supabase
+    const { data, error } = await supabase
       .from('auction_history')
-      .insert(saleRecord)
+      .insert(historyRow)
       .select()
       .single()
 
     console.log('SUPABASE SALE RESULT:', {
-      saleData,
-      saleError,
+      data,
+      error,
     })
 
-    if (saleError) {
+    if (error) {
       console.error(
-        'SALE HISTORY INSERT ERROR:',
-        saleError
+        'SUPABASE SALE ERROR:',
+        error
       )
 
-      throw saleError
+      alert(error.message)
+
+      return
     }
 
-    // ------------------------------------------
-    // 3. RESET CURRENT AUCTION
-    // ------------------------------------------
+    const historyItem = mapHistory(data)
 
     setAuction((current) => ({
       ...current,
@@ -361,45 +342,52 @@ export function AuctionProvider({ children }) {
       timeRemaining: 300,
 
       history: [
-        saleData,
+        historyItem,
         ...current.history,
       ],
     }))
 
-    console.log('==============================')
-    console.log('PLAYER SOLD SUCCESSFULLY')
-    console.log('==============================')
-
-    return updatedPlayer
+    console.log(
+      'PLAYER SOLD SUCCESSFULLY:',
+      playerId
+    )
   }
 
-  // ==========================================
-  // RESET AUCTION
-  // ==========================================
+  // --------------------------------------------------
+  // RESET CURRENT AUCTION
+  // --------------------------------------------------
 
   const resetAuction = () => {
-    console.log('RESETTING AUCTION')
+    setAuction((current) => ({
+      ...current,
 
-    setAuction({
-      ...initialAuction,
-      history: auction.history,
-    })
+      currentPlayerId: '',
+
+      highestBid: 0,
+
+      highestTeamId: '',
+
+      timeRemaining: 300,
+    }))
   }
 
-  // ==========================================
-  // CONTEXT VALUE
-  // ==========================================
+  // --------------------------------------------------
+  // VALUE
+  // --------------------------------------------------
 
   const value = useMemo(
     () => ({
       auction,
-      loading,
+      historyLoading,
       selectPlayer,
       registerBid,
       recordSale,
       resetAuction,
     }),
-    [auction, loading]
+    [
+      auction,
+      historyLoading,
+    ]
   )
 
   return (
