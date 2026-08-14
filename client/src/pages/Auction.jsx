@@ -7,24 +7,28 @@ import {
 } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 
+import { supabase } from '../lib/supabase'
 import { useAuction } from '../context/AuctionContext'
 import { useAuth } from '../context/AuthContext'
 import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
-
 import { formatCurrency } from '../utils/formatCurrency'
 
 const BID_INCREMENT = 1000
+
+function safeNumber(value, fallback = 0) {
+  const number = Number(value)
+
+  return Number.isFinite(number)
+    ? number
+    : fallback
+}
 
 function Auction() {
   const { user } = useAuth()
   const isAdmin = Boolean(user)
 
-  const {
-    players,
-    updatePlayer,
-  } = usePlayers()
-
+  const { players, updatePlayer } = usePlayers()
   const { teams } = useTeams()
 
   const {
@@ -37,34 +41,13 @@ function Auction() {
   const [selectedTeamId, setSelectedTeamId] =
     useState('')
 
-  // ==========================================
-  // SAFE NUMBER
-  // ==========================================
-
-  const safeNumber = (value, fallback = 0) => {
-    const number = Number(value)
-
-    return Number.isFinite(number)
-      ? number
-      : fallback
-  }
-
-  // ==========================================
-  // UNSOLD PLAYERS
-  // ==========================================
-
   const unsoldPlayers = useMemo(
     () =>
       players.filter(
-        (player) =>
-          player.status !== 'Sold'
+        (player) => player.status !== 'Sold'
       ),
     [players]
   )
-
-  // ==========================================
-  // CURRENT PLAYER
-  // ==========================================
 
   const currentPlayer = players.find(
     (player) =>
@@ -72,26 +55,19 @@ function Auction() {
       String(auction.currentPlayerId)
   )
 
-  // ==========================================
-  // CURRENT LEADING TEAM
-  // ==========================================
-
   const currentTeam = teams.find(
     (team) =>
       String(team.id) ===
       String(auction.highestTeamId)
   )
 
-  // ==========================================
-  // TEAM REMAINING BUDGET
-  // ==========================================
-
   const getTeamRemainingBudget = (team) => {
+    if (!team) return 0
+
     const startingBudget = safeNumber(
       team.startingBudget ??
         team.starting_budget ??
-        team.budget ??
-        100000,
+        team.budget,
       100000
     )
 
@@ -111,8 +87,8 @@ function Auction() {
       .reduce((total, player) => {
         const soldPrice = safeNumber(
           player.soldPrice ??
-            player.sold_price ??
-            0
+            player.sold_price,
+          0
         )
 
         return total + soldPrice
@@ -124,19 +100,11 @@ function Auction() {
     )
   }
 
-  // ==========================================
-  // SELECTED TEAM
-  // ==========================================
-
   const selectedTeam = teams.find(
     (team) =>
       String(team.id) ===
       String(selectedTeamId)
   )
-
-  // ==========================================
-  // CURRENT BID
-  // ==========================================
 
   const currentBid = safeNumber(
     auction.highestBid,
@@ -146,23 +114,19 @@ function Auction() {
   const nextBid =
     currentBid + BID_INCREMENT
 
-  // ==========================================
-  // SELECT PLAYER
-  // ==========================================
-
   const handleSelectPlayer = (player) => {
     if (!isAdmin) return
 
     const basePrice = safeNumber(
       player.basePrice ??
-        player.base_price ??
-        0,
+        player.base_price,
       0
     )
 
     selectPlayer({
       ...player,
       basePrice,
+      base_price: basePrice,
     })
 
     setSelectedTeamId(
@@ -176,11 +140,7 @@ function Auction() {
     )
   }
 
-  // ==========================================
-  // BID
-  // ==========================================
-
-  const handleBid = () => {
+  const handleBid = async () => {
     if (!isAdmin) return
 
     if (!currentPlayer) {
@@ -209,38 +169,27 @@ function Auction() {
       return
     }
 
-    console.log(
-      '=============================='
-    )
-    console.log(
-      'REGISTERING BID'
-    )
-    console.log(
-      'PLAYER:',
-      currentPlayer
-    )
-    console.log(
-      'TEAM:',
-      selectedTeam
-    )
-    console.log(
-      'BID:',
-      nextBid
-    )
+    try {
+      await registerBid(
+        selectedTeam.id,
+        nextBid
+      )
 
-    registerBid(
-      selectedTeam.id,
-      nextBid
-    )
+      toast.success(
+        `${selectedTeam.name} bid ${formatCurrency(nextBid)}`
+      )
+    } catch (error) {
+      console.error(
+        'BID ERROR:',
+        error
+      )
 
-    toast.success(
-      `${selectedTeam.name} bid ${formatCurrency(nextBid)}`
-    )
+      toast.error(
+        error?.message ||
+          'Bid failed'
+      )
+    }
   }
-
-  // ==========================================
-  // SELL PLAYER
-  // ==========================================
 
   const handleSale = async () => {
     if (!isAdmin) return
@@ -286,77 +235,87 @@ function Auction() {
     console.log(
       '=============================='
     )
-
     console.log(
-      'SELLING PLAYER'
+      'FINAL SALE STARTED'
     )
-
     console.log(
-      'PLAYER:',
-      currentPlayer
+      'PLAYER ID:',
+      currentPlayer.id
     )
-
     console.log(
-      'TEAM:',
-      currentTeam
+      'TEAM ID:',
+      currentTeam.id
     )
-
     console.log(
       'SALE PRICE:',
       salePrice
     )
 
-    // ========================================
-    // UPDATE PLAYER
-    // ========================================
-
-    const updatedPlayer = {
-      ...currentPlayer,
-
-      status: 'Sold',
-
-      teamId: currentTeam.id,
-
-      team_id: currentTeam.id,
-
-      soldPrice: salePrice,
-
-      sold_price: salePrice,
-
-      basePrice: safeNumber(
-        currentPlayer.basePrice ??
-          currentPlayer.base_price ??
-          0
-      ),
-
-      base_price: safeNumber(
-        currentPlayer.basePrice ??
-          currentPlayer.base_price ??
-          0
-      ),
-    }
-
-    console.log(
-      'UPDATING PLAYER WITH SALE:',
-      updatedPlayer
-    )
-
     try {
-      // IMPORTANT:
-      // Supabase update complete hone ka wait
-      await updatePlayer(
-        updatedPlayer
-      )
+      // --------------------------------------
+      // SAVE SALE DIRECTLY TO SUPABASE
+      // --------------------------------------
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('players')
+        .update({
+          status: 'Sold',
+          team_id: currentTeam.id,
+          sold_price: salePrice,
+        })
+        .eq('id', currentPlayer.id)
+        .select('*')
+        .single()
 
       console.log(
-        'PLAYER SUCCESSFULLY SAVED'
+        'DIRECT SUPABASE SALE RESULT:',
+        {
+          data,
+          error,
+        }
       )
 
-      // ======================================
-      // RECORD SALE
-      // ======================================
+      if (error) {
+        throw error
+      }
 
-      recordSale(
+      // --------------------------------------
+      // UPDATE FRONTEND STATE
+      // --------------------------------------
+
+      await updatePlayer({
+        ...currentPlayer,
+
+        status: 'Sold',
+
+        teamId:
+          currentTeam.id,
+
+        team_id:
+          currentTeam.id,
+
+        soldPrice:
+          salePrice,
+
+        sold_price:
+          salePrice,
+
+        basePrice:
+          safeNumber(
+            currentPlayer.basePrice ??
+              currentPlayer.base_price,
+            0
+          ),
+      })
+
+      // --------------------------------------
+      // SAVE SALE HISTORY
+      // --------------------------------------
+
+      await recordSale(
         currentTeam.id,
         salePrice
       )
@@ -368,7 +327,7 @@ function Auction() {
       )
 
       console.log(
-        'SALE COMPLETED SUCCESSFULLY'
+        'PLAYER SOLD SUCCESSFULLY'
       )
     } catch (error) {
       console.error(
@@ -383,20 +342,14 @@ function Auction() {
     }
   }
 
-  // ==========================================
-  // HISTORY
-  // ==========================================
-
   const history =
     auction.history?.slice(0, 12) || []
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
   return (
     <main className="page-shell">
+
       <div className="page-header">
+
         <div>
           <p className="eyebrow">
             SBT MAJOR · LIVE CONTROL ROOM
@@ -436,9 +389,8 @@ function Auction() {
             ).padStart(2, '0')}
           </strong>
         </div>
-      </div>
 
-      {/* VIEWER NOTICE */}
+      </div>
 
       {!isAdmin && (
         <section className="glass-card auction-viewer-notice">
@@ -459,16 +411,14 @@ function Auction() {
 
       <section className="auction-layout">
 
-        {/* ================================= */}
-        {/* LEFT SIDE */}
-        {/* ================================= */}
-
         <div className="auction-main">
 
           {/* AVAILABLE PLAYERS */}
 
           <section className="glass-card auction-panel">
+
             <div className="section-heading">
+
               <div>
                 <span className="eyebrow">
                   AVAILABLE PLAYERS
@@ -480,9 +430,9 @@ function Auction() {
               </div>
 
               <span className="counter">
-                {unsoldPlayers.length}{' '}
-                available
+                {unsoldPlayers.length} available
               </span>
+
             </div>
 
             <div className="auction-player-list">
@@ -491,11 +441,12 @@ function Auction() {
 
                 unsoldPlayers.map(
                   (player) => {
+
                     const basePrice =
                       safeNumber(
                         player.basePrice ??
-                          player.base_price ??
-                          0
+                          player.base_price,
+                        0
                       )
 
                     return (
@@ -531,6 +482,7 @@ function Auction() {
                         )}
 
                         <span>
+
                           <strong>
                             {player.nickname ||
                               player.realName ||
@@ -539,12 +491,13 @@ function Auction() {
 
                           <small>
                             {player.role ||
-                              'Player'}{' '}
-                            ·{' '}
+                              'Player'}
+                            {' · '}
                             {formatCurrency(
                               basePrice
                             )}
                           </small>
+
                         </span>
 
                       </button>
@@ -561,11 +514,10 @@ function Auction() {
               )}
 
             </div>
+
           </section>
 
-          {/* ================================= */}
           {/* CURRENT PLAYER */}
-          {/* ================================= */}
 
           {currentPlayer ? (
 
@@ -574,6 +526,7 @@ function Auction() {
               <div className="current-player">
 
                 {currentPlayer.photo ? (
+
                   <img
                     src={currentPlayer.photo}
                     alt={
@@ -581,13 +534,17 @@ function Auction() {
                       'Player'
                     }
                   />
+
                 ) : (
+
                   <div className="current-player-placeholder">
                     <FaUserNinja />
                   </div>
+
                 )}
 
                 <div>
+
                   <span className="eyebrow">
                     CURRENT PLAYER
                   </span>
@@ -600,16 +557,15 @@ function Auction() {
 
                   <p>
                     {currentPlayer.realName ||
-                      'Unknown'}{' '}
-                    ·{' '}
+                      'Unknown'}
+                    {' · '}
                     {currentPlayer.role ||
                       'Player'}
                   </p>
+
                 </div>
 
               </div>
-
-              {/* BID DISPLAY */}
 
               <div className="auction-bid-display">
 
@@ -631,9 +587,8 @@ function Auction() {
 
               </div>
 
-              {/* ADMIN CONTROLS */}
-
               {isAdmin && (
+
                 <div className="auction-controls">
 
                   <label>
@@ -649,26 +604,32 @@ function Auction() {
                         )
                       }
                     >
+
                       <option value="">
                         Select a team
                       </option>
 
                       {teams.map(
                         (team) => (
+
                           <option
                             key={team.id}
                             value={team.id}
                           >
-                            {team.name} ·{' '}
+                            {team.name}
+                            {' · '}
                             {formatCurrency(
                               getTeamRemainingBudget(
                                 team
                               )
                             )}
                           </option>
+
                         )
                       )}
+
                     </select>
+
                   </label>
 
                   <div className="auction-control-actions">
@@ -699,6 +660,7 @@ function Auction() {
                   </div>
 
                 </div>
+
               )}
 
             </section>
@@ -725,9 +687,7 @@ function Auction() {
 
         </div>
 
-        {/* ================================= */}
         {/* HISTORY */}
-        {/* ================================= */}
 
         <aside className="glass-card auction-history">
 
@@ -749,77 +709,77 @@ function Auction() {
 
             {history.length > 0 ? (
 
-              history.map((entry) => {
+              history.map(
+                (entry) => {
 
-                const player =
-                  players.find(
-                    (item) =>
-                      String(item.id) ===
-                      String(
-                        entry.playerId
-                      )
-                  )
+                  const player =
+                    players.find(
+                      (item) =>
+                        String(item.id) ===
+                        String(
+                          entry.playerId
+                        )
+                    )
 
-                const team =
-                  teams.find(
-                    (item) =>
-                      String(item.id) ===
-                      String(
-                        entry.teamId
-                      )
-                  )
+                  const team =
+                    teams.find(
+                      (item) =>
+                        String(item.id) ===
+                        String(
+                          entry.teamId
+                        )
+                    )
 
-                const amount =
-                  safeNumber(
-                    entry.amount,
-                    0
-                  )
-
-                return (
-                  <div
-                    className="history-entry"
-                    key={entry.id}
-                  >
-
-                    <span
-                      className={
-                        entry.type ===
-                        'sale'
-                          ? 'history-icon sale'
-                          : 'history-icon'
-                      }
+                  return (
+                    <div
+                      className="history-entry"
+                      key={entry.id}
                     >
-                      {entry.type ===
-                      'sale'
-                        ? 'Sold'
-                        : 'Bid'}
-                    </span>
 
-                    <div>
+                      <span
+                        className={
+                          entry.type === 'sale'
+                            ? 'history-icon sale'
+                            : 'history-icon'
+                        }
+                      >
+                        {entry.type === 'sale'
+                          ? 'Sold'
+                          : 'Bid'}
+                      </span>
+
+                      <div>
+
+                        <strong>
+                          {player?.nickname ||
+                            'Player'}
+                        </strong>
+
+                        <span>
+                          {entry.type ===
+                          'sale'
+                            ? 'sold to'
+                            : 'bid by'}
+                          {' '}
+                          {team?.name ||
+                            'Team'}
+                        </span>
+
+                      </div>
+
                       <strong>
-                        {player?.nickname ||
-                          'Player'}
+                        {formatCurrency(
+                          safeNumber(
+                            entry.amount,
+                            0
+                          )
+                        )}
                       </strong>
 
-                      <span>
-                        {entry.type ===
-                        'sale'
-                          ? 'sold to'
-                          : 'bid by'}{' '}
-                        {team?.name ||
-                          'Team'}
-                      </span>
                     </div>
-
-                    <strong>
-                      {formatCurrency(
-                        amount
-                      )}
-                    </strong>
-
-                  </div>
-                )
-              })
+                  )
+                }
+              )
 
             ) : (
 
@@ -834,6 +794,7 @@ function Auction() {
         </aside>
 
       </section>
+
     </main>
   )
 }
