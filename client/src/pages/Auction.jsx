@@ -16,14 +16,6 @@ import { formatCurrency } from '../utils/formatCurrency'
 
 const BID_INCREMENT = 1000
 
-function safeNumber(value, fallback = 0) {
-  const number = Number(value)
-
-  return Number.isFinite(number)
-    ? number
-    : fallback
-}
-
 function Auction() {
   const { user } = useAuth()
   const isAdmin = Boolean(user)
@@ -38,8 +30,7 @@ function Auction() {
     recordSale,
   } = useAuction()
 
-  const [selectedTeamId, setSelectedTeamId] =
-    useState('')
+  const [selectedTeamId, setSelectedTeamId] = useState('')
 
   const unsoldPlayers = useMemo(
     () =>
@@ -51,48 +42,44 @@ function Auction() {
 
   const currentPlayer = players.find(
     (player) =>
-      String(player.id) ===
-      String(auction.currentPlayerId)
+      player.id === auction.currentPlayerId
   )
 
   const currentTeam = teams.find(
     (team) =>
-      String(team.id) ===
-      String(auction.highestTeamId)
+      team.id === auction.highestTeamId
   )
 
-  const getTeamRemainingBudget = (team) => {
-    if (!team) return 0
+  // ==========================================
+  // TEAM REMAINING BUDGET
+  // ==========================================
 
-    const startingBudget = safeNumber(
+  const getTeamRemainingBudget = (team) => {
+    const startingBudget = Number(
       team.startingBudget ??
-        team.starting_budget ??
-        team.budget,
-      100000
+        team.budget ??
+        100000
     )
 
     const spent = players
-      .filter((player) => {
-        const playerTeamId =
-          player.teamId ??
-          player.team_id ??
-          ''
-
-        return (
+      .filter(
+        (player) =>
           player.status === 'Sold' &&
-          String(playerTeamId) ===
+          String(player.teamId || '') ===
             String(team.id)
-        )
-      })
-      .reduce((total, player) => {
-        const soldPrice = safeNumber(
-          player.soldPrice ??
-            player.sold_price,
-          0
-        )
+      )
+      .reduce(
+        (total, player) => {
+          const price = Number(
+            player.soldPrice ??
+              player.sold_price ??
+              0
+          )
 
-        return total + soldPrice
-      }, 0)
+          return total + (Number.isFinite(price) ? price : 0)
+        },
+        0
+      )
 
     return Math.max(
       0,
@@ -106,28 +93,18 @@ function Auction() {
       String(selectedTeamId)
   )
 
-  const currentBid = safeNumber(
-    auction.highestBid,
-    0
-  )
-
   const nextBid =
-    currentBid + BID_INCREMENT
+    Number(auction.highestBid || 0) +
+    BID_INCREMENT
+
+  // ==========================================
+  // SELECT PLAYER
+  // ==========================================
 
   const handleSelectPlayer = (player) => {
     if (!isAdmin) return
 
-    const basePrice = safeNumber(
-      player.basePrice ??
-        player.base_price,
-      0
-    )
-
-    selectPlayer({
-      ...player,
-      basePrice,
-      base_price: basePrice,
-    })
+    selectPlayer(player)
 
     setSelectedTeamId(
       teams.length > 0
@@ -136,9 +113,13 @@ function Auction() {
     )
 
     toast.success(
-      `${player.nickname || 'Player'} is now on the block`
+      `${player.nickname} is now on the block`
     )
   }
+
+  // ==========================================
+  // BID
+  // ==========================================
 
   const handleBid = async () => {
     if (!isAdmin) return
@@ -186,10 +167,14 @@ function Auction() {
 
       toast.error(
         error?.message ||
-          'Bid failed'
+          'Failed to register bid'
       )
     }
   }
+
+  // ==========================================
+  // SELL PLAYER
+  // ==========================================
 
   const handleSale = async () => {
     if (!isAdmin) return
@@ -208,130 +193,159 @@ function Auction() {
       return
     }
 
-    const salePrice = safeNumber(
-      auction.highestBid,
-      0
+    const finalPrice = Number(
+      auction.highestBid || 0
     )
 
-    if (salePrice <= 0) {
+    if (
+      !Number.isFinite(finalPrice) ||
+      finalPrice <= 0
+    ) {
       toast.error(
-        'Please place a valid bid first'
+        'Invalid sale amount'
       )
       return
     }
 
-    const teamBudget =
-      getTeamRemainingBudget(
+    try {
+      console.log(
+        '================================'
+      )
+
+      console.log(
+        'SELLING PLAYER:'
+      )
+
+      console.log(
+        'PLAYER:',
+        currentPlayer
+      )
+
+      console.log(
+        'TEAM:',
         currentTeam
       )
 
-    if (salePrice > teamBudget) {
-      toast.error(
-        `${currentTeam.name} does not have enough budget`
+      console.log(
+        'FINAL PRICE:',
+        finalPrice
       )
-      return
-    }
 
-    console.log(
-      '=============================='
-    )
-    console.log(
-      'FINAL SALE STARTED'
-    )
-    console.log(
-      'PLAYER ID:',
-      currentPlayer.id
-    )
-    console.log(
-      'TEAM ID:',
-      currentTeam.id
-    )
-    console.log(
-      'SALE PRICE:',
-      salePrice
-    )
-
-    try {
-      // --------------------------------------
+      // ======================================
       // SAVE SALE DIRECTLY TO SUPABASE
-      // --------------------------------------
+      // ======================================
+
+      const playerUpdate = {
+        status: 'Sold',
+        team_id: currentTeam.id,
+        sold_price: finalPrice,
+        sold_at: new Date().toISOString(),
+      }
+
+      console.log(
+        'UPDATING PLAYER IN SUPABASE:',
+        playerUpdate
+      )
 
       const {
-        data,
-        error,
+        data: updatedData,
+        error: updateError,
       } = await supabase
         .from('players')
-        .update({
-          status: 'Sold',
-          team_id: currentTeam.id,
-          sold_price: salePrice,
-        })
+        .update(playerUpdate)
         .eq('id', currentPlayer.id)
-        .select('*')
+        .select()
         .single()
 
       console.log(
-        'DIRECT SUPABASE SALE RESULT:',
+        'SUPABASE SALE UPDATE RESULT:',
         {
-          data,
-          error,
+          data: updatedData,
+          error: updateError,
         }
       )
 
-      if (error) {
-        throw error
+      if (updateError) {
+        throw updateError
       }
 
-      // --------------------------------------
-      // UPDATE FRONTEND STATE
-      // --------------------------------------
+      // ======================================
+      // UPDATE FRONTEND PLAYER STATE
+      // ======================================
 
       await updatePlayer({
         ...currentPlayer,
-
         status: 'Sold',
-
-        teamId:
-          currentTeam.id,
-
-        team_id:
-          currentTeam.id,
-
-        soldPrice:
-          salePrice,
-
-        sold_price:
-          salePrice,
-
-        basePrice:
-          safeNumber(
-            currentPlayer.basePrice ??
-              currentPlayer.base_price,
-            0
-          ),
+        teamId: currentTeam.id,
+        soldPrice: finalPrice,
+        sold_price: finalPrice,
+        soldAt:
+          updatedData?.sold_at ||
+          new Date().toISOString(),
       })
 
-      // --------------------------------------
-      // SAVE SALE HISTORY
-      // --------------------------------------
+      // ======================================
+      // SAVE SALE TO AUCTION HISTORY
+      // ======================================
 
-      await recordSale(
+      const {
+        data: historyData,
+        error: historyError,
+      } = await supabase
+        .from('auction_history')
+        .insert({
+          player_id: currentPlayer.id,
+          team_id: currentTeam.id,
+          amount: finalPrice,
+          type: 'sale',
+        })
+        .select()
+        .single()
+
+      console.log(
+        'SUPABASE SALE HISTORY RESULT:',
+        {
+          data: historyData,
+          error: historyError,
+        }
+      )
+
+      if (historyError) {
+        console.warn(
+          'AUCTION HISTORY ERROR:',
+          historyError
+        )
+
+        toast.error(
+          'Player sold, but history could not be saved'
+        )
+      }
+
+      // ======================================
+      // RESET AUCTION
+      // ======================================
+
+      recordSale(
         currentTeam.id,
-        salePrice
+        finalPrice
       )
 
       setSelectedTeamId('')
 
       toast.success(
-        `${currentPlayer.nickname || 'Player'} sold to ${currentTeam.name} for ${formatCurrency(salePrice)}`
+        `${currentPlayer.nickname} sold to ${currentTeam.name} for ${formatCurrency(finalPrice)}`
       )
 
       console.log(
-        'PLAYER SOLD SUCCESSFULLY'
+        'PLAYER SALE COMPLETED SUCCESSFULLY'
+      )
+
+      console.log(
+        '================================'
       )
     } catch (error) {
       console.error(
-        'SALE ERROR:',
+        'PLAYER SALE ERROR:',
         error
       )
 
@@ -343,21 +357,22 @@ function Auction() {
   }
 
   const history =
-    auction.history?.slice(0, 12) || []
+    auction.history.slice(0, 12)
+
+  // ==========================================
+  // RENDER
+  // ==========================================
 
   return (
     <main className="page-shell">
 
-      <div className="page-header">
-
+      <header className="page-heading">
         <div>
-          <p className="eyebrow">
+          <span className="eyebrow">
             SBT MAJOR · LIVE CONTROL ROOM
-          </p>
+          </span>
 
-          <h1>
-            Live Auction
-          </h1>
+          <h1>Live Auction</h1>
 
           <p>
             Nominate players, accept bids,
@@ -373,9 +388,7 @@ function Auction() {
               : ''
           }`}
         >
-          <span>
-            TIME REMAINING
-          </span>
+          <span>TIME REMAINING</span>
 
           <strong>
             {String(
@@ -389,8 +402,7 @@ function Auction() {
             ).padStart(2, '0')}
           </strong>
         </div>
-
-      </div>
+      </header>
 
       {!isAdmin && (
         <section className="glass-card auction-viewer-notice">
@@ -402,14 +414,19 @@ function Auction() {
             </strong>
 
             <span>
-              Auction controls are available
-              to tournament administrators only.
+              Auction controls are
+              available to tournament
+              administrators only.
             </span>
           </div>
         </section>
       )}
 
       <section className="auction-layout">
+
+        {/* ================================= */}
+        {/* LEFT SIDE */}
+        {/* ================================= */}
 
         <div className="auction-main">
 
@@ -430,79 +447,77 @@ function Auction() {
               </div>
 
               <span className="counter">
-                {unsoldPlayers.length} available
+                {unsoldPlayers.length}{' '}
+                available
               </span>
 
             </div>
 
             <div className="auction-player-list">
 
-              {unsoldPlayers.length > 0 ? (
+              {unsoldPlayers.length ? (
 
                 unsoldPlayers.map(
-                  (player) => {
+                  (player) => (
 
-                    const basePrice =
-                      safeNumber(
-                        player.basePrice ??
-                          player.base_price,
-                        0
-                      )
+                    <button
+                      className={
+                        currentPlayer?.id ===
+                        player.id
+                          ? 'auction-player active'
+                          : 'auction-player'
+                      }
+                      type="button"
+                      onClick={() =>
+                        handleSelectPlayer(
+                          player
+                        )
+                      }
+                      disabled={!isAdmin}
+                      key={player.id}
+                    >
 
-                    return (
-                      <button
-                        className={
-                          currentPlayer?.id ===
-                          player.id
-                            ? 'auction-player active'
-                            : 'auction-player'
-                        }
-                        type="button"
-                        onClick={() =>
-                          handleSelectPlayer(
-                            player
-                          )
-                        }
-                        disabled={!isAdmin}
-                        key={player.id}
-                      >
+                      {player.photo ? (
 
-                        {player.photo ? (
-                          <img
-                            src={player.photo}
-                            alt={
-                              player.nickname ||
-                              'Player'
-                            }
-                          />
-                        ) : (
-                          <span className="auction-player-icon">
-                            <FaUserNinja />
-                          </span>
-                        )}
+                        <img
+                          src={player.photo}
+                          alt={
+                            player.nickname
+                          }
+                        />
 
-                        <span>
+                      ) : (
 
-                          <strong>
-                            {player.nickname ||
-                              player.realName ||
-                              'Player'}
-                          </strong>
-
-                          <small>
-                            {player.role ||
-                              'Player'}
-                            {' · '}
-                            {formatCurrency(
-                              basePrice
-                            )}
-                          </small>
-
+                        <span className="auction-player-icon">
+                          <FaUserNinja />
                         </span>
 
-                      </button>
-                    )
-                  }
+                      )}
+
+                      <span>
+
+                        <strong>
+                          {player.nickname}
+                        </strong>
+
+                        <small>
+                          {player.role ||
+                            'Player'}{' '}
+                          ·{' '}
+                          {formatCurrency(
+                            Number(
+                              player.basePrice ||
+                                player.base_price ||
+                                0
+                            )
+                          )}
+                        </small>
+
+                      </span>
+
+                    </button>
+
+                  )
                 )
 
               ) : (
@@ -530,8 +545,7 @@ function Auction() {
                   <img
                     src={currentPlayer.photo}
                     alt={
-                      currentPlayer.nickname ||
-                      'Player'
+                      currentPlayer.nickname
                     }
                   />
 
@@ -550,15 +564,13 @@ function Auction() {
                   </span>
 
                   <h2>
-                    {currentPlayer.nickname ||
-                      currentPlayer.realName ||
-                      'Player'}
+                    {currentPlayer.nickname}
                   </h2>
 
                   <p>
                     {currentPlayer.realName ||
-                      'Unknown'}
-                    {' · '}
+                      ''}{' '}
+                    ·{' '}
                     {currentPlayer.role ||
                       'Player'}
                   </p>
@@ -575,7 +587,10 @@ function Auction() {
 
                 <strong>
                   {formatCurrency(
-                    currentBid
+                    Number(
+                      auction.highestBid ||
+                        0
+                    )
                   )}
                 </strong>
 
@@ -592,6 +607,7 @@ function Auction() {
                 <div className="auction-controls">
 
                   <label>
+
                     Bid for team
 
                     <select
@@ -616,8 +632,7 @@ function Auction() {
                             key={team.id}
                             value={team.id}
                           >
-                            {team.name}
-                            {' · '}
+                            {team.name} ·{' '}
                             {formatCurrency(
                               getTeamRemainingBudget(
                                 team
@@ -641,10 +656,8 @@ function Auction() {
                     >
                       <FaGavel />
 
-                      Increase Bid +{' '}
-                      {formatCurrency(
-                        BID_INCREMENT
-                      )}
+                      Increase Bid +$
+                      {BID_INCREMENT.toLocaleString()}
                     </button>
 
                     <button
@@ -687,13 +700,16 @@ function Auction() {
 
         </div>
 
+        {/* ================================= */}
         {/* HISTORY */}
+        {/* ================================= */}
 
         <aside className="glass-card auction-history">
 
           <div className="section-heading">
 
             <div>
+
               <span className="eyebrow">
                 LIVE HISTORY
               </span>
@@ -701,85 +717,83 @@ function Auction() {
               <h2>
                 Latest Activity
               </h2>
+
             </div>
 
           </div>
 
           <div className="history-list">
 
-            {history.length > 0 ? (
+            {history.length ? (
 
-              history.map(
-                (entry) => {
+              history.map((entry) => {
 
-                  const player =
-                    players.find(
-                      (item) =>
-                        String(item.id) ===
-                        String(
-                          entry.playerId
-                        )
-                    )
+                const player =
+                  players.find(
+                    (item) =>
+                      item.id ===
+                      entry.playerId
+                  )
 
-                  const team =
-                    teams.find(
-                      (item) =>
-                        String(item.id) ===
-                        String(
-                          entry.teamId
-                        )
-                    )
+                const team =
+                  teams.find(
+                    (item) =>
+                      item.id ===
+                      entry.teamId
+                  )
 
-                  return (
-                    <div
-                      className="history-entry"
-                      key={entry.id}
+                return (
+
+                  <div
+                    className="history-entry"
+                    key={entry.id}
+                  >
+
+                    <span
+                      className={
+                        entry.type ===
+                        'sale'
+                          ? 'history-icon sale'
+                          : 'history-icon'
+                      }
                     >
+                      {entry.type ===
+                      'sale'
+                        ? 'Sold'
+                        : 'Bid'}
+                    </span>
 
-                      <span
-                        className={
-                          entry.type === 'sale'
-                            ? 'history-icon sale'
-                            : 'history-icon'
-                        }
-                      >
-                        {entry.type === 'sale'
-                          ? 'Sold'
-                          : 'Bid'}
-                      </span>
-
-                      <div>
-
-                        <strong>
-                          {player?.nickname ||
-                            'Player'}
-                        </strong>
-
-                        <span>
-                          {entry.type ===
-                          'sale'
-                            ? 'sold to'
-                            : 'bid by'}
-                          {' '}
-                          {team?.name ||
-                            'Team'}
-                        </span>
-
-                      </div>
+                    <div>
 
                       <strong>
-                        {formatCurrency(
-                          safeNumber(
-                            entry.amount,
-                            0
-                          )
-                        )}
+                        {player?.nickname ||
+                          'Player'}
                       </strong>
 
+                      <span>
+                        {entry.type ===
+                        'sale'
+                          ? 'sold to'
+                          : 'bid by'}{' '}
+                        {team?.name ||
+                          'Team'}
+                      </span>
+
                     </div>
-                  )
-                }
-              )
+
+                    <strong>
+                      {formatCurrency(
+                        Number(
+                          entry.amount ||
+                            0
+                        )
+                      )}
+                    </strong>
+
+                  </div>
+
+                )
+              })
 
             ) : (
 
