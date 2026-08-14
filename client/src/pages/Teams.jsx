@@ -1,94 +1,226 @@
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
 import {
   FaEdit,
   FaPlus,
   FaShieldAlt,
   FaTrash,
   FaUsers,
+  FaTimes,
+  FaImage,
 } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 
 import ConfirmDialog from '../components/ConfirmDialog'
-import TeamModal from '../components/TeamModal'
 import TeamDetailsModal from '../components/TeamDetailsModal'
 
 import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
-
 import { formatCurrency } from '../utils/formatCurrency'
 
+function Teams() {
+  const {
+    teams = [],
+    addTeam,
+    updateTeam,
+    deleteTeam,
+  } = useTeams()
 
-  function Teams() {
-  console.log("🔥 TEAMS PAGE LOADED")
-
-  const { teams, addTeam, updateTeam, deleteTeam } = useTeams()
-  const { user } = useAuth()
-  const { players } = usePlayers()
-
-  const isAdmin = Boolean(user)
+  const { players = [] } = usePlayers()
 
   const [selectedTeam, setSelectedTeam] = useState(null)
-  const [viewTeam, setViewTeam] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [teamToDelete, setTeamToDelete] = useState(null)
+  const [viewTeam, setViewTeam] = useState(null)
+
+  const [form, setForm] = useState({
+    name: '',
+    owner: '',
+    startingBudget: 100000,
+    color: '#F5C542',
+    logo: '',
+  })
 
   const openCreate = () => {
     setSelectedTeam(null)
+
+    setForm({
+      name: '',
+      owner: '',
+      startingBudget: 100000,
+      color: '#F5C542',
+      logo: '',
+    })
+
     setIsModalOpen(true)
   }
 
   const openEdit = (team) => {
     setSelectedTeam(team)
+
+    setForm({
+      name: team.name || '',
+      owner: team.owner || '',
+      startingBudget: Number(
+        team.startingBudget ??
+          team.budget ??
+          100000
+      ),
+      color: team.color || '#F5C542',
+      logo: team.logo || '',
+    })
+
     setIsModalOpen(true)
   }
 
-const saveTeam = async (team) => {
-  console.log("🔥 SAVE TEAM FUNCTION CALLED", team)
-
-  const hasDuplicate = teams.some(
-    (item) =>
-      item.id !== team.id &&
-      item.name.trim().toLowerCase() === normalizedName
-  )
-
-  if (hasDuplicate) {
-    toast.error('A team with this name already exists')
-    return
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setSelectedTeam(null)
   }
 
-  const normalizedTeam = {
-    ...team,
-    name: team.name.trim(),
-    owner: team.owner.trim(),
+  const handleInput = (event) => {
+    const { name, value } = event.target
+
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }))
   }
 
-  try {
-    if (selectedTeam) {
-      await updateTeam(normalizedTeam)
-      toast.success('Team updated successfully')
-    } else {
-      await addTeam(normalizedTeam)
-      toast.success('Team created successfully')
+  const handleLogo = (event) => {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
     }
 
-    setIsModalOpen(false)
-  } catch (error) {
-    console.error('SAVE TEAM ERROR:', error)
-    toast.error(error.message || 'Failed to save team')
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      setForm((current) => ({
+        ...current,
+        logo: String(reader.result || ''),
+      }))
+    }
+
+    reader.onerror = () => {
+      toast.error('Failed to read logo')
+    }
+
+    reader.readAsDataURL(file)
   }
-}
+
+  const saveTeam = async (event) => {
+    event.preventDefault()
+
+    try {
+      console.log('TEAM SAVE STARTED')
+
+      const teamName = String(form.name || '').trim()
+      const ownerName = String(form.owner || '').trim()
+
+      if (!teamName) {
+        toast.error('Team name is required')
+        return
+      }
+
+      if (!ownerName) {
+        toast.error('Owner name is required')
+        return
+      }
+
+      const budget = Number(form.startingBudget)
+
+      if (!Number.isFinite(budget) || budget < 0) {
+        toast.error('Enter a valid starting budget')
+        return
+      }
+
+      // Duplicate check is completely local to this function.
+      // No outside normalizedName variable is used.
+      const duplicate = teams.some((item) => {
+        const existingName = String(
+          item.name || ''
+        )
+          .trim()
+          .toLowerCase()
+
+        const newName = teamName.toLowerCase()
+
+        return (
+          item.id !== selectedTeam?.id &&
+          existingName === newName
+        )
+      })
+
+      if (duplicate) {
+        toast.error(
+          'A team with this name already exists'
+        )
+        return
+      }
+
+      const teamData = {
+        ...(selectedTeam || {}),
+        name: teamName,
+        owner: ownerName,
+        startingBudget: budget,
+        budget: budget,
+        color: form.color || '#F5C542',
+        logo: form.logo || '',
+      }
+
+      console.log('TEAM DATA:', teamData)
+
+      if (selectedTeam) {
+        await updateTeam(teamData)
+        toast.success(
+          'Team updated successfully'
+        )
+      } else {
+        await addTeam(teamData)
+        toast.success(
+          'Team created successfully'
+        )
+      }
+
+      closeModal()
+    } catch (error) {
+      console.error(
+        'TEAM SAVE ERROR:',
+        error
+      )
+
+      toast.error(
+        error?.message ||
+          'Failed to save team'
+      )
+    }
+  }
 
   const confirmDelete = async () => {
     if (!teamToDelete) return
 
     try {
       await deleteTeam(teamToDelete.id)
-      toast.success(`${teamToDelete.name} deleted`)
+
+      toast.success(
+        `${teamToDelete.name} deleted`
+      )
+
       setTeamToDelete(null)
     } catch (error) {
-      console.error('DELETE TEAM ERROR:', error)
-      toast.error(error?.message || 'Failed to delete team')
+      console.error(
+        'TEAM DELETE ERROR:',
+        error
+      )
+
+      toast.error(
+        error?.message ||
+          'Failed to delete team'
+      )
     }
   }
 
@@ -101,90 +233,117 @@ const saveTeam = async (team) => {
   }
 
   return (
-    <section className="page-section">
+    <section className="teams-page">
+      {/* ============================= */}
+      {/* HEADER */}
+      {/* ============================= */}
 
-      <div className="page-header">
+      <header className="teams-heading">
         <div>
           <p className="eyebrow">
-            SBT MAJOR · TOURNAMENT ROSTER
+            SBT Major · Tournament Roster
           </p>
 
-          <h1>TEAMS</h1>
+          <h1>Teams</h1>
 
           <p>
-            Build and manage every competing squad in the Major.
+            Build and manage every competing
+            squad in the Major.
           </p>
         </div>
 
-        {isAdmin && (
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={openCreate}
+        >
+          <FaPlus />
+          Create Team
+        </button>
+      </header>
+
+      {/* ============================= */}
+      {/* TEAMS */}
+      {/* ============================= */}
+
+      {teams.length === 0 ? (
+        <section className="empty-teams glass-card">
+          <FaShieldAlt />
+
+          <h2>No teams created yet</h2>
+
+          <p>
+            Add the first team to begin
+            preparing the SBT MAJOR roster.
+          </p>
+
           <button
-            type="button"
             className="button button-primary"
+            type="button"
             onClick={openCreate}
           >
             <FaPlus />
-            Create Team
+            Create First Team
           </button>
-        )}
-      </div>
+        </section>
+      ) : (
+        <div className="teams-grid">
+          {teams.map((team) => {
+            const roster = getRoster(team.id)
 
-      <div className="team-grid">
-        {teams.map((team) => {
-          const roster = getRoster(team.id)
+            const startingBudget = Number(
+              team.startingBudget ??
+                team.budget ??
+                100000
+            )
 
-          const startingBudget = Number(
-            team.startingBudget ??
-              team.starting_budget ??
-              team.budget ??
-              100000
-          )
+            const spent = roster.reduce(
+              (total, player) =>
+                total +
+                Number(
+                  player.soldPrice ??
+                    player.basePrice ??
+                    0
+                ),
+              0
+            )
 
-          const spent = roster.reduce(
-            (total, player) =>
-              total +
-              Number(
-                player.soldPrice ??
-                  player.basePrice ??
-                  0
-              ),
-            0
-          )
+            const remainingBudget =
+              Math.max(
+                0,
+                startingBudget - spent
+              )
 
-          const remainingBudget = Math.max(
-            0,
-            startingBudget - spent
-          )
+            return (
+              <article
+                className="team-card glass-card"
+                key={team.id}
+                style={{
+                  '--team-color':
+                    team.color ||
+                    '#F5C542',
+                }}
+                onClick={() =>
+                  setViewTeam(team)
+                }
+              >
+                <div className="team-card-top">
+                  <div className="team-logo">
+                    {team.logo ? (
+                      <img
+                        src={team.logo}
+                        alt={`${team.name} logo`}
+                      />
+                    ) : (
+                      <FaShieldAlt />
+                    )}
+                  </div>
 
-          return (
-            <article
-              className="team-card glass-card"
-              key={team.id}
-              style={{
-                '--team-color': team.color || '#f5b700',
-              }}
-              onClick={() => setViewTeam(team)}
-            >
-
-              <div className="team-card-top">
-
-                <div className="team-logo">
-                  {team.logo ? (
-                    <img
-                      src={team.logo}
-                      alt={`${team.name} logo`}
-                    />
-                  ) : (
-                    <FaShieldAlt />
-                  )}
-                </div>
-
-                {isAdmin && (
                   <div className="team-actions">
-
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
+                      onClick={(event) => {
+                        event.stopPropagation()
                         openEdit(team)
                       }}
                       aria-label={`Edit ${team.name}`}
@@ -194,81 +353,367 @@ const saveTeam = async (team) => {
 
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
+                      onClick={(event) => {
+                        event.stopPropagation()
                         setTeamToDelete(team)
                       }}
                       aria-label={`Delete ${team.name}`}
                     >
                       <FaTrash />
                     </button>
-
                   </div>
-                )}
-
-              </div>
-
-              <h2>{team.name}</h2>
-
-              <p className="team-owner">
-                Owner:
-                <strong> {team.owner}</strong>
-              </p>
-
-              <div className="team-details">
-
-                <div>
-                  <span>REMAINING BUDGET</span>
-
-                  <strong>
-                    {formatCurrency(remainingBudget)}
-                  </strong>
                 </div>
 
-                <div>
-                  <span>PLAYERS</span>
+                <h2>{team.name}</h2>
 
+                <p className="team-owner">
+                  Owner:
                   <strong>
+                    {' '}
+                    {team.owner || 'N/A'}
+                  </strong>
+                </p>
+
+                <div className="team-details">
+                  <div>
+                    <span>
+                      Remaining Budget
+                    </span>
+
+                    <strong>
+                      {formatCurrency(
+                        remainingBudget
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
                     <FaUsers />
-                    {roster.length}
-                  </strong>
+
+                    <span>
+                      Players
+                    </span>
+
+                    <strong>
+                      {roster.length}
+                    </strong>
+                  </div>
                 </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
 
-              </div>
-
-            </article>
-          )
-        })}
-      </div>
+      {/* ============================= */}
+      {/* CREATE / EDIT MODAL */}
+      {/* ============================= */}
 
       {isModalOpen && (
-        <TeamModal
-          team={selectedTeam}
-          onClose={() => {
-            setIsModalOpen(false)
-            setSelectedTeam(null)
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeModal()
+            }
           }}
-          onSave={saveTeam}
-        />
+        >
+          <div
+            className="glass-card"
+            style={{
+              width: 'min(600px, 94vw)',
+              padding: '28px',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={closeModal}
+              style={{
+                position: 'absolute',
+                right: '18px',
+                top: '18px',
+              }}
+              aria-label="Close"
+            >
+              <FaTimes />
+            </button>
+
+            <p className="eyebrow">
+              TEAM MANAGEMENT
+            </p>
+
+            <h2
+              style={{
+                marginBottom: '24px',
+              }}
+            >
+              {selectedTeam
+                ? 'EDIT TEAM'
+                : 'CREATE TEAM'}
+            </h2>
+
+            <form onSubmit={saveTeam}>
+              {/* TEAM NAME */}
+
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '16px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    marginBottom: '7px',
+                  }}
+                >
+                  TEAM NAME
+                </span>
+
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleInput}
+                  placeholder="Enter team name"
+                  autoComplete="off"
+                />
+              </label>
+
+              {/* OWNER */}
+
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '16px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    marginBottom: '7px',
+                  }}
+                >
+                  OWNER NAME
+                </span>
+
+                <input
+                  type="text"
+                  name="owner"
+                  value={form.owner}
+                  onChange={handleInput}
+                  placeholder="Enter owner name"
+                  autoComplete="off"
+                />
+              </label>
+
+              {/* BUDGET + COLOR */}
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 120px',
+                  gap: '14px',
+                  marginBottom: '16px',
+                }}
+              >
+                <label>
+                  <span
+                    style={{
+                      display: 'block',
+                      marginBottom: '7px',
+                    }}
+                  >
+                    STARTING BUDGET
+                  </span>
+
+                  <input
+                    type="number"
+                    name="startingBudget"
+                    min="0"
+                    step="1000"
+                    value={
+                      form.startingBudget
+                    }
+                    onChange={handleInput}
+                  />
+                </label>
+
+                <label>
+                  <span
+                    style={{
+                      display: 'block',
+                      marginBottom: '7px',
+                    }}
+                  >
+                    TEAM COLOR
+                  </span>
+
+                  <input
+                    type="color"
+                    name="color"
+                    value={
+                      form.color
+                    }
+                    onChange={handleInput}
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '3px',
+                    }}
+                  />
+                </label>
+              </div>
+
+              {/* LOGO */}
+
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '20px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    marginBottom: '7px',
+                  }}
+                >
+                  TEAM LOGO
+                </span>
+
+                <div
+                  style={{
+                    border:
+                      '1px dashed rgba(255,255,255,.25)',
+                    padding: '16px',
+                    textAlign: 'center',
+                    borderRadius: '8px',
+                  }}
+                >
+                  {form.logo ? (
+                    <div>
+                      <img
+                        src={form.logo}
+                        alt="Team logo preview"
+                        style={{
+                          width: '90px',
+                          height: '90px',
+                          objectFit: 'contain',
+                          display: 'block',
+                          margin:
+                            '0 auto 12px',
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              logo: '',
+                            })
+                          )
+                        }
+                      >
+                        Remove Logo
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      style={{
+                        cursor: 'pointer',
+                        display: 'block',
+                      }}
+                    >
+                      <FaImage />
+
+                      <div>
+                        Choose image file
+                      </div>
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={
+                          handleLogo
+                        }
+                        style={{
+                          display: 'none',
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </label>
+
+              {/* ACTIONS */}
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'flex-end',
+                  gap: '10px',
+                }}
+              >
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={closeModal}
+                >
+                  CANCEL
+                </button>
+
+                <button
+                  type="submit"
+                  className="button button-primary"
+                >
+                  {selectedTeam
+                    ? 'SAVE CHANGES'
+                    : 'CREATE TEAM'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
+
+      {/* ============================= */}
+      {/* DELETE CONFIRM */}
+      {/* ============================= */}
 
       {teamToDelete && (
         <ConfirmDialog
-          title="Delete this team?"
-          message={`This will permanently remove ${teamToDelete.name} from the tournament roster.`}
-          onCancel={() => setTeamToDelete(null)}
+          title="Delete Team"
+          message={`Are you sure you want to delete ${teamToDelete.name}?`}
           onConfirm={confirmDelete}
+          onCancel={() =>
+            setTeamToDelete(null)
+          }
         />
       )}
+
+      {/* ============================= */}
+      {/* TEAM DETAILS */}
+      {/* ============================= */}
 
       {viewTeam && (
         <TeamDetailsModal
           team={viewTeam}
-          players={players}
-          onClose={() => setViewTeam(null)}
+          players={getRoster(viewTeam.id)}
+          onClose={() =>
+            setViewTeam(null)
+          }
         />
       )}
-
     </section>
   )
 }
