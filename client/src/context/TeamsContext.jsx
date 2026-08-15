@@ -12,6 +12,29 @@ const TeamsContext = createContext(null)
 
 const STORAGE_KEY = 'sbt-major-teams'
 
+const DEFAULT_BUDGET = 100000
+
+// ==========================================
+// SUPABASE → FRONTEND
+// ==========================================
+
+function mapTeam(team) {
+  return {
+    ...team,
+
+    startingBudget: Number(
+      team.starting_budget ??
+        team.startingBudget ??
+        team.budget ??
+        DEFAULT_BUDGET
+    ),
+  }
+}
+
+// ==========================================
+// LOCAL STORAGE
+// ==========================================
+
 function readLocalTeams() {
   try {
     const stored = JSON.parse(
@@ -22,57 +45,58 @@ function readLocalTeams() {
       return []
     }
 
-    return stored.map((team) => ({
-      ...team,
-      startingBudget: Number(
-        team.startingBudget ??
-          team.starting_budget ??
-          team.budget ??
-          100000
-      ),
-    }))
-  } catch (error) {
-    console.error('LOCAL TEAMS READ ERROR:', error)
+    return stored.map(mapTeam)
+  } catch {
     return []
   }
 }
 
-function mapSupabaseTeam(team) {
-  return {
-    ...team,
-    startingBudget: Number(
-      team.starting_budget ?? 100000
-    ),
-  }
-}
+// ==========================================
+// PROVIDER
+// ==========================================
 
 export function TeamsProvider({ children }) {
-  const [teams, setTeams] = useState(readLocalTeams)
+  const [teams, setTeams] = useState(
+    readLocalTeams
+  )
+
   const [loading, setLoading] = useState(true)
 
-  // ==========================================
-  // LOAD TEAMS FROM SUPABASE
-  // ==========================================
+  // ========================================
+  // LOAD FROM SUPABASE
+  // ========================================
 
   useEffect(() => {
     let cancelled = false
 
     async function loadTeams() {
-      console.log('LOADING TEAMS FROM SUPABASE...')
+      console.log(
+        '=============================='
+      )
+
+      console.log(
+        'LOADING TEAMS FROM SUPABASE...'
+      )
 
       setLoading(true)
 
-      const { data, error } = await supabase
+      const {
+        data,
+        error,
+      } = await supabase
         .from('teams')
         .select('*')
         .order('created_at', {
           ascending: true,
         })
 
-      console.log('SUPABASE LOAD RESULT:', {
-        data,
-        error,
-      })
+      console.log(
+        'SUPABASE TEAMS RESULT:',
+        {
+          data,
+          error,
+        }
+      )
 
       if (cancelled) {
         return
@@ -80,23 +104,26 @@ export function TeamsProvider({ children }) {
 
       if (error) {
         console.error(
-          'SUPABASE TEAMS LOAD ERROR:',
+          'TEAMS LOAD ERROR:',
           error
         )
 
         setLoading(false)
+
         return
       }
 
-      // Supabase data exists
-      if (Array.isArray(data) && data.length > 0) {
-        setTeams(data.map(mapSupabaseTeam))
-      }
+      const mappedTeams =
+        (data || []).map(mapTeam)
 
-      // If database is empty, keep localStorage
-      // so existing local teams don't disappear.
+      setTeams(mappedTeams)
 
       setLoading(false)
+
+      console.log(
+        'TEAMS LOADED:',
+        mappedTeams.length
+      )
     }
 
     loadTeams()
@@ -106,54 +133,171 @@ export function TeamsProvider({ children }) {
     }
   }, [])
 
-  // ==========================================
+  // ========================================
   // LOCAL STORAGE BACKUP
-  // ==========================================
+  // ========================================
 
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(teams)
-      )
-    } catch (error) {
-      console.error(
-        'LOCAL TEAMS SAVE ERROR:',
-        error
-      )
-    }
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(teams)
+    )
   }, [teams])
 
-  // ==========================================
+  // ========================================
   // ADD TEAM
-  // ==========================================
+  // ========================================
 
   const addTeam = async (team) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'ADD TEAM STARTED'
+    )
+
+    console.log(
+      'TEAM RECEIVED:',
+      team
+    )
+
+    const teamName = String(
+      team?.name || ''
+    ).trim()
+
+    const ownerName = String(
+      team?.owner || ''
+    ).trim()
+
+    if (!teamName) {
+      throw new Error(
+        'Team name is required.'
+      )
+    }
+
+    if (!ownerName) {
+      throw new Error(
+        'Owner name is required.'
+      )
+    }
+
+    const startingBudget = Number(
+      team?.startingBudget ??
+        team?.starting_budget ??
+        team?.budget ??
+        DEFAULT_BUDGET
+    )
+
+    if (
+      !Number.isFinite(startingBudget) ||
+      startingBudget < 0
+    ) {
+      throw new Error(
+        'Invalid starting budget.'
+      )
+    }
+
+    // ======================================
+    // CHECK CURRENT SUPABASE USER
+    // ======================================
+
+    const {
+      data: authData,
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    console.log(
+      'CURRENT SUPABASE USER:',
+      authData?.user || null
+    )
+
+    console.log(
+      'AUTH ERROR:',
+      authError
+    )
+
+    if (authError) {
+      console.error(
+        'AUTH CHECK ERROR:',
+        authError
+      )
+
+      throw authError
+    }
+
+    if (!authData?.user) {
+      throw new Error(
+        'You are not logged in to Supabase.'
+      )
+    }
+
+    // ======================================
+    // DUPLICATE TEAM CHECK
+    // ======================================
+
+    const normalizedTeamName =
+      teamName.toLowerCase()
+
+    const duplicateTeam =
+      teams.some((existingTeam) => {
+        const existingName =
+          String(
+            existingTeam?.name || ''
+          )
+            .trim()
+            .toLowerCase()
+
+        return (
+          existingName ===
+          normalizedTeamName
+        )
+      })
+
+    if (duplicateTeam) {
+      throw new Error(
+        'A team with this name already exists.'
+      )
+    }
+
+    // ======================================
+    // SUPABASE INSERT OBJECT
+    // ======================================
+
     const newTeam = {
-      name: team.name?.trim() || '',
-      owner: team.owner?.trim() || '',
-      logo: team.logo || '',
-      color: team.color || '',
-      starting_budget: Number(
-        team.startingBudget ??
-          team.starting_budget ??
-          team.budget ??
-          100000
-      ),
+      id: crypto.randomUUID(),
+
+      created_at:
+        new Date().toISOString(),
+
+      name: teamName,
+
+      owner: ownerName,
+
+      logo: team?.logo || '',
+
+      color:
+        team?.color || '#F5C542',
+
+      starting_budget:
+        startingBudget,
     }
 
     console.log(
-      '================================'
-    )
-    console.log('INSERTING TEAM:')
-    console.log(newTeam)
-    console.log(
-      '================================'
+      'INSERTING TEAM:',
+      newTeam
     )
 
-    const { data, error } = await supabase
+    // ======================================
+    // INSERT
+    // ======================================
+
+    const {
+      data,
+      error,
+    } = await supabase
       .from('teams')
-      .insert([newTeam])
+      .insert(newTeam)
       .select('*')
       .single()
 
@@ -174,41 +318,146 @@ export function TeamsProvider({ children }) {
       throw error
     }
 
-    const savedTeam = mapSupabaseTeam(data)
+    const mappedTeam =
+      mapTeam(data)
 
-    setTeams((current) => [
-      ...current,
-      savedTeam,
-    ])
+    setTeams(
+      (current) => [
+        ...current,
+        mappedTeam,
+      ]
+    )
 
-    return savedTeam
+    console.log(
+      'TEAM SUCCESSFULLY SAVED:',
+      mappedTeam
+    )
+
+    console.log(
+      'ADD TEAM FINISHED'
+    )
+
+    console.log(
+      '=============================='
+    )
+
+    return mappedTeam
   }
 
-  // ==========================================
+  // ========================================
   // UPDATE TEAM
-  // ==========================================
+  // ========================================
 
   const updateTeam = async (team) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'UPDATE TEAM STARTED:',
+      team
+    )
+
+    if (!team?.id) {
+      throw new Error(
+        'Team ID is required.'
+      )
+    }
+
+    const teamName = String(
+      team.name || ''
+    ).trim()
+
+    const ownerName = String(
+      team.owner || ''
+    ).trim()
+
+    if (!teamName) {
+      throw new Error(
+        'Team name is required.'
+      )
+    }
+
+    if (!ownerName) {
+      throw new Error(
+        'Owner name is required.'
+      )
+    }
+
+    const startingBudget = Number(
+      team.startingBudget ??
+        team.starting_budget ??
+        team.budget ??
+        DEFAULT_BUDGET
+    )
+
+    if (
+      !Number.isFinite(startingBudget) ||
+      startingBudget < 0
+    ) {
+      throw new Error(
+        'Invalid starting budget.'
+      )
+    }
+
+    // ======================================
+    // DUPLICATE NAME CHECK
+    // ======================================
+
+    const normalizedTeamName =
+      teamName.toLowerCase()
+
+    const duplicateTeam =
+      teams.some((existingTeam) => {
+        if (
+          existingTeam.id ===
+          team.id
+        ) {
+          return false
+        }
+
+        const existingName =
+          String(
+            existingTeam?.name || ''
+          )
+            .trim()
+            .toLowerCase()
+
+        return (
+          existingName ===
+          normalizedTeamName
+        )
+      })
+
+    if (duplicateTeam) {
+      throw new Error(
+        'A team with this name already exists.'
+      )
+    }
+
     const updatedTeam = {
-      name: team.name?.trim() || '',
-      owner: team.owner?.trim() || '',
+      name: teamName,
+
+      owner: ownerName,
+
       logo: team.logo || '',
-      color: team.color || '',
-      starting_budget: Number(
-        team.startingBudget ??
-          team.starting_budget ??
-          team.budget ??
-          100000
-      ),
+
+      color:
+        team.color || '#F5C542',
+
+      starting_budget:
+        startingBudget,
     }
 
     console.log(
-      'UPDATING TEAM:',
-      team.id,
+      'UPDATING TEAM IN SUPABASE:',
       updatedTeam
     )
 
-    const { data, error } = await supabase
+    const {
+      data,
+      error,
+    } = await supabase
       .from('teams')
       .update(updatedTeam)
       .eq('id', team.id)
@@ -232,37 +481,58 @@ export function TeamsProvider({ children }) {
       throw error
     }
 
-    const savedTeam = mapSupabaseTeam(data)
+    const mappedTeam =
+      mapTeam(data)
 
-    setTeams((current) =>
-      current.map((item) =>
-        item.id === team.id
-          ? savedTeam
-          : item
-      )
+    setTeams(
+      (current) =>
+        current.map((item) =>
+          item.id === team.id
+            ? mappedTeam
+            : item
+        )
     )
 
-    return savedTeam
+    console.log(
+      'TEAM UPDATED SUCCESSFULLY:',
+      mappedTeam
+    )
+
+    return mappedTeam
   }
 
-  // ==========================================
+  // ========================================
   // DELETE TEAM
-  // ==========================================
+  // ========================================
 
   const deleteTeam = async (id) => {
     console.log(
-      'DELETING TEAM:',
+      '=============================='
+    )
+
+    console.log(
+      'DELETE TEAM STARTED:',
       id
     )
 
-    const { error } = await supabase
+    if (!id) {
+      throw new Error(
+        'Team ID is required.'
+      )
+    }
+
+    const {
+      error,
+    } = await supabase
       .from('teams')
       .delete()
       .eq('id', id)
 
     console.log(
       'SUPABASE DELETE RESULT:',
-      error
+      {
+        error,
+      }
     )
 
     if (error) {
@@ -274,16 +544,22 @@ export function TeamsProvider({ children }) {
       throw error
     }
 
-    setTeams((current) =>
-      current.filter(
-        (team) => team.id !== id
-      )
+    setTeams(
+      (current) =>
+        current.filter(
+          (team) =>
+            team.id !== id
+        )
+    )
+
+    console.log(
+      'TEAM DELETED SUCCESSFULLY'
     )
   }
 
-  // ==========================================
+  // ========================================
   // CONTEXT VALUE
-  // ==========================================
+  // ========================================
 
   const value = useMemo(
     () => ({
@@ -293,16 +569,27 @@ export function TeamsProvider({ children }) {
       updateTeam,
       deleteTeam,
     }),
-    [teams, loading]
+    [
+      teams,
+      loading,
+    ]
   )
 
   return (
-    <TeamsContext.Provider value={value}>
+    <TeamsContext.Provider
+      value={value}
+    >
       {children}
     </TeamsContext.Provider>
   )
 }
 
+// ==========================================
+// HOOK
+// ==========================================
+
 export function useTeams() {
-  return useContext(TeamsContext)
+  return useContext(
+    TeamsContext
+  )
 }

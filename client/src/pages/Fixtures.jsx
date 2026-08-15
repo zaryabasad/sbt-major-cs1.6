@@ -99,12 +99,15 @@ function Fixtures() {
     }
 
     replaceFixtures(
-  generatePoolFixtures(
+  generateRoundRobin(
     teams,
     generator.date,
     generator.time,
     generator.format
-  )
+  ).map((fixture) => ({
+    ...fixture,
+    pool: 'A',
+  }))
 )
     
 
