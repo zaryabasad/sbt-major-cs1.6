@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { FaEdit, FaPlus, FaRandom } from 'react-icons/fa'
 import toast from 'react-hot-toast'
-import { useAuth } from '../context/AuthContext'
 
 import FixtureModal from '../components/FixtureModal'
 import { useFixtures } from '../context/FixturesContext'
@@ -57,9 +56,6 @@ function generateRoundRobin(teams, date, time, format) {
 
 function Fixtures() {
   const { teams } = useTeams()
-  const { user } = useAuth()
-
-  const isAdmin = Boolean(user)
 
     function splitTeamsIntoPools(teams) {
       const poolASize = Math.ceil(teams.length / 2)
@@ -68,7 +64,37 @@ function Fixtures() {
         poolA: teams.slice(0, poolASize),
         poolB: teams.slice(poolASize),
       }
-    
+    }
+
+    function generatePoolFixtures(teams, date, time, format) {
+      const { poolA, poolB } = splitTeamsIntoPools(teams)
+
+      const poolAFixtures = generateRoundRobin(
+        poolA,
+        date,
+        time,
+        format
+      ).map((fixture) => ({
+        ...fixture,
+        pool: 'A',
+      }))
+
+      const poolBStart = new Date(`${date}T${time}`)
+      poolBStart.setMinutes(
+        poolBStart.getMinutes() + poolAFixtures.length * 75
+      )
+
+      const poolBFixtures = generateRoundRobin(
+        poolB,
+        poolBStart.toISOString().slice(0, 10),
+        poolBStart.toTimeString().slice(0, 5),
+        format
+      ).map((fixture) => ({
+        ...fixture,
+        pool: 'B',
+      }))
+
+      return [...poolAFixtures, ...poolBFixtures]
     }
   const {
     fixtures,
@@ -88,7 +114,7 @@ function Fixtures() {
   const getTeam = (id) =>
     teams.find((team) => team.id === id)
 
-  const generateFixtures = (event) => {
+  const generateFixtures = async (event) => {
     event.preventDefault()
 
     if (teams.length < 2) {
@@ -98,23 +124,24 @@ function Fixtures() {
       return
     }
 
-    replaceFixtures(
-  generateRoundRobin(
-    teams,
-    generator.date,
-    generator.time,
-    generator.format
-  ).map((fixture) => ({
-    ...fixture,
-    pool: 'A',
-  }))
-)
-    
+    try {
+      await replaceFixtures(
+        generatePoolFixtures(
+          teams,
+          generator.date,
+          generator.time,
+          generator.format
+        )
+      )
 
-  
-    setIsGeneratorOpen(false)
-
-    toast.success('Pool fixtures generated')
+      setIsGeneratorOpen(false)
+      toast.success('Pool fixtures generated')
+    } catch (error) {
+      console.error('FIXTURE GENERATION ERROR:', error)
+      toast.error(
+        error?.message || 'Failed to generate fixtures'
+      )
+    }
   }
 
   const saveFixture = (fixture) => {
@@ -140,15 +167,13 @@ function Fixtures() {
           </p>
         </div>
 
-        {isAdmin && (
-  <button
-    className="button button-primary"
-    onClick={() => setIsGeneratorOpen(true)}
-  >
-    <FaRandom />
-    Generate Round Robin
-  </button>
-)}
+        <button
+          className="button button-primary"
+          onClick={() => setIsGeneratorOpen(true)}
+        >
+          <FaRandom />
+          Generate Round Robin
+        </button>
       </header>
 
       {fixtures.length === 0 ? (
@@ -163,30 +188,19 @@ function Fixtures() {
             team roster.
           </p>
 
-          {isAdmin && (
-  <button
-    className="button button-primary"
-    onClick={() => setIsGeneratorOpen(true)}
-  >
-    <FaRandom />
-    Generate Fixtures
-  </button>
-)}
+          <button
+            className="button button-primary"
+            onClick={() => setIsGeneratorOpen(true)}
+          >
+            <FaRandom />
+            Generate Fixtures
+          </button>
 
         </section>
       ) : (
-        <div className="pool-section">
-  <div className="pool-header">
-    <p className="eyebrow">GROUP A</p>
-    <h2>POOL A</h2>
-  </div>
+        <div className="fixtures-list">
 
-  <div className="fixtures-list">
-
-
-          {fixtures
-  .filter((fixture) => fixture.pool === 'A')
-  .map((fixture) => {
+          {fixtures.map((fixture) => {
             const home = getTeam(fixture.homeTeamId)
             const away = getTeam(fixture.awayTeamId)
             const winner = getTeam(fixture.winnerId)
@@ -265,17 +279,15 @@ function Fixtures() {
                       : 'Upcoming'}
                   </span>
 
-                  {isAdmin && (
-  <button
-    className="icon-button"
-    onClick={() =>
-      setSelectedFixture(fixture)
-    }
-    aria-label="Edit fixture"
-  >
-    <FaEdit />
-  </button>
-)}
+                  <button
+                    className="icon-button"
+                    onClick={() =>
+                      setSelectedFixture(fixture)
+                    }
+                    aria-label="Edit fixture"
+                  >
+                    <FaEdit />
+                  </button>
 
                 </div>
 
@@ -284,81 +296,8 @@ function Fixtures() {
           })}
 
         </div>
-        </div>
       )}
-<div className="pool-section">
-  <div className="pool-header">
-    <p className="eyebrow">GROUP B</p>
-    <h2>POOL B</h2>
-  </div>
 
-  <div className="fixtures-list">
-    {fixtures
-      .filter((fixture) => fixture.pool === 'B')
-      .map((fixture) => {
-        const home = getTeam(fixture.homeTeamId)
-        const away = getTeam(fixture.awayTeamId)
-        const winner = getTeam(fixture.winnerId)
-
-        return (
-          <article
-            className={`fixture-card glass-card ${
-              fixture.status === 'Completed'
-                ? 'fixture-completed'
-                : ''
-            }`}
-            key={fixture.id}
-          >
-            <div className="fixture-top">
-              <span>Round {fixture.round}</span>
-              <span>
-                {fixture.date} · {fixture.time}
-              </span>
-            </div>
-
-            <div className="fixture-match">
-              <strong className={winner?.id === home?.id ? 'winner' : ''}>
-                {home?.name || 'Deleted Team'}
-              </strong>
-
-              <span className="fixture-vs">VS</span>
-
-              <strong className={winner?.id === away?.id ? 'winner' : ''}>
-                {away?.name || 'Deleted Team'}
-              </strong>
-            </div>
-
-            <div className="fixture-bottom">
-              <span className="fixture-format">
-                {fixture.format}
-              </span>
-
-              <span
-                className={
-                  fixture.status === 'Completed'
-                    ? 'fixture-status completed'
-                    : 'fixture-status'
-                }
-              >
-                {fixture.status === 'Completed'
-                  ? `Winner: ${winner?.name || 'Winner pending'}`
-                  : 'Upcoming'}
-              </span>
-
-{isAdmin && (
-  <button
-    className="icon-button"
-    onClick={() => setSelectedFixture(fixture)}
-    aria-label="Edit fixture"
-  >
-    <FaEdit />
-  </button>
-)}            </div>
-          </article>
-        )
-      })}
-  </div>
-</div>
       {isGeneratorOpen && (
         <div
           className="modal-backdrop"
