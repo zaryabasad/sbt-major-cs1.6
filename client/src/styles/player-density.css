@@ -1,21 +1,21 @@
 /* Compact player management cards — designed to show ~20 players on desktop. */
 .players-page .players-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  gap: 14px !important;
+  gap: 10px !important;
 }
 
 .players-page .player-card {
   min-width: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .players-page .player-image {
-  width: 82px;
-  height: 82px;
-  min-width: 82px;
-  min-height: 82px;
-  margin: 14px auto 8px;
+  width: 41px !important;
+  height: 41px !important;
+  min-width: 41px !important;
+  min-height: 41px !important;
+  margin: 8px auto 5px;
   border-radius: 50%;
   overflow: hidden;
 }
@@ -27,29 +27,29 @@
 }
 
 .players-page .player-image svg {
-  font-size: 1.7rem;
+  font-size: .95rem;
 }
 
 .players-page .player-card-content {
-  padding: 10px 13px 13px;
+  padding: 6px 9px 9px;
 }
 
 .players-page .player-card h2 {
-  margin: 7px 0 2px;
-  font-size: 1rem;
+  margin: 5px 0 1px;
+  font-size: .84rem;
   line-height: 1.05;
 }
 
 .players-page .player-nickname,
 .players-page .player-profile {
-  margin: 3px 0;
-  font-size: .65rem;
+  margin: 2px 0;
+  font-size: .56rem;
 }
 
 .players-page .player-meta {
-  margin-top: 9px;
-  padding-top: 8px;
-  font-size: .62rem;
+  margin-top: 6px;
+  padding-top: 6px;
+  font-size: .53rem;
 }
 
 @media (max-width: 1200px) {
@@ -67,14 +67,14 @@
 @media (max-width: 650px) {
   .players-page .players-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
 
   .players-page .player-image {
-    width: 68px;
-    height: 68px;
-    min-width: 68px;
-    min-height: 68px;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
   }
 }
 
