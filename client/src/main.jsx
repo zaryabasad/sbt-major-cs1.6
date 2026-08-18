@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './mobile.css'
+import './mobile-header.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { TeamsProvider } from './context/TeamsContext.jsx'
