@@ -37,11 +37,7 @@ function VoiceChat() {
     channel.send({
       type: 'broadcast',
       event: SIGNAL_EVENT,
-      payload: {
-        from: user.id,
-        to,
-        data,
-      },
+      payload: { from: user.id, to, data },
     })
   }, [user])
 
@@ -73,29 +69,21 @@ function VoiceChat() {
       ],
     })
 
-    const localStream = localStreamRef.current
-    localStream?.getTracks().forEach((track) => {
-      peer.addTrack(track, localStream)
+    localStreamRef.current?.getTracks().forEach((track) => {
+      peer.addTrack(track, localStreamRef.current)
     })
 
     peer.onicecandidate = (event) => {
       if (event.candidate) {
-        sendSignal(peerId, {
-          type: 'candidate',
-          candidate: event.candidate,
-        })
+        sendSignal(peerId, { type: 'candidate', candidate: event.candidate })
       }
     }
 
     peer.ontrack = (event) => {
       const stream = event.streams?.[0]
       if (!stream) return
-
       remoteStreamsRef.current.set(peerId, stream)
-      setRemoteStreams((current) => ({
-        ...current,
-        [peerId]: stream,
-      }))
+      setRemoteStreams((current) => ({ ...current, [peerId]: stream }))
     }
 
     peer.onconnectionstatechange = () => {
@@ -115,10 +103,7 @@ function VoiceChat() {
     try {
       const offer = await peer.createOffer()
       await peer.setLocalDescription(offer)
-      sendSignal(peerId, {
-        type: 'offer',
-        offer,
-      })
+      sendSignal(peerId, { type: 'offer', offer })
     } catch (offerError) {
       console.error('VOICE OFFER ERROR:', offerError)
     }
@@ -138,10 +123,7 @@ function VoiceChat() {
         await peer.setRemoteDescription(signal.offer)
         const answer = await peer.createAnswer()
         await peer.setLocalDescription(answer)
-        sendSignal(peerId, {
-          type: 'answer',
-          answer,
-        })
+        sendSignal(peerId, { type: 'answer', answer })
         return
       }
 
@@ -164,7 +146,7 @@ function VoiceChat() {
 
   const refreshPresence = useCallback(() => {
     const channel = channelRef.current
-    if (!channel) return
+    if (!channel) return []
 
     const state = channel.presenceState()
     const users = Object.entries(state).map(([key, values]) => {
@@ -177,6 +159,7 @@ function VoiceChat() {
     })
 
     setParticipants(users)
+    return users
   }, [])
 
   const leaveRoom = useCallback(() => {
@@ -188,7 +171,7 @@ function VoiceChat() {
     setRemoteStreams({})
 
     if (channel) {
-      channel.untrack()
+      void channel.untrack()
       supabase.removeChannel(channel)
       channelRef.current = null
     }
@@ -226,6 +209,7 @@ function VoiceChat() {
 
       const channel = supabase.channel(VOICE_CHANNEL, {
         config: {
+          private: true,
           broadcast: { self: false },
           presence: { key: user.id },
         },
@@ -238,15 +222,17 @@ function VoiceChat() {
           void handleSignal(payload)
         })
         .on('presence', { event: 'sync' }, () => {
-          refreshPresence()
+          const users = refreshPresence()
+          for (const participant of users) {
+            if (participant.id !== user.id && user.id < participant.id) {
+              void makeOffer(participant.id)
+            }
+          }
         })
         .on('presence', { event: 'join' }, ({ key, newPresences }) => {
           refreshPresence()
-          if (key && key !== user.id) {
-            const otherId = key
-            if (user.id < otherId) {
-              void makeOffer(otherId)
-            }
+          if (key && key !== user.id && user.id < key) {
+            void makeOffer(key)
           }
 
           const joinedName = newPresences?.[0]?.name
@@ -290,7 +276,6 @@ function VoiceChat() {
   const toggleMute = () => {
     const track = localStreamRef.current?.getAudioTracks?.()[0]
     if (!track) return
-
     track.enabled = !track.enabled
     setMuted(!track.enabled)
   }
@@ -302,7 +287,7 @@ function VoiceChat() {
       const channel = channelRef.current
       peersRef.current.forEach((peer) => peer.close())
       peersRef.current.clear()
-      channel?.untrack()
+      void channel?.untrack()
       if (channel) supabase.removeChannel(channel)
       localStreamRef.current?.getTracks().forEach((track) => track.stop())
       channelRef.current = null
@@ -414,6 +399,7 @@ function VoiceChat() {
             ref={(element) => {
               if (element && element.srcObject !== stream) {
                 element.srcObject = stream
+                void element.play().catch(() => undefined)
               }
             }}
           />
