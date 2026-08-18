@@ -1,0 +1,23 @@
+/* Compact player portraits/icons */
+.players-page .player-image {
+  width: 41px !important;
+  height: 41px !important;
+  min-width: 41px !important;
+  min-height: 41px !important;
+}
+
+.players-page .player-image img,
+.players-page .player-image svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+@media (max-width: 720px) {
+  .players-page .player-image {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+}
