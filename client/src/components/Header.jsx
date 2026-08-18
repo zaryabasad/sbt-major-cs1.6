@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const navigation = [
   { label: 'Home', to: '/' },
@@ -13,9 +14,15 @@ const navigation = [
 ]
 
 function Header() {
+  const { isTeamAdmin, isSuperAdmin } = useAuth()
+  const canUseVoice = isTeamAdmin || isSuperAdmin
   const [menuOpen, setMenuOpen] = useState(false)
 
   const closeMenu = () => setMenuOpen(false)
+
+  const visibleNavigation = canUseVoice
+    ? [...navigation, { label: 'Voice Chat', to: '/voice' }]
+    : navigation
 
   return (
     <header className="site-header">
@@ -25,7 +32,7 @@ function Header() {
 
       <div className={`mobile-nav-panel${menuOpen ? ' open' : ''}`}>
         <nav aria-label="Main navigation">
-          {navigation.map(({ label, to }) => (
+          {visibleNavigation.map(({ label, to }) => (
             <NavLink key={to} to={to} onClick={closeMenu}>
               {label}
             </NavLink>
@@ -39,7 +46,7 @@ function Header() {
 
       <div className="site-header-desktop-nav">
         <nav aria-label="Main navigation">
-          {navigation.map(({ label, to }) => (
+          {visibleNavigation.map(({ label, to }) => (
             <NavLink key={to} to={to}>
               {label}
             </NavLink>
