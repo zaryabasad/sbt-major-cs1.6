@@ -7,6 +7,7 @@ import { TeamsProvider } from './context/TeamsContext.jsx'
 import { PlayersProvider } from './context/PlayersContext.jsx'
 import { AuctionProvider } from './context/AuctionContext.jsx'
 import { FixturesProvider } from './context/FixturesContext.jsx'
+import { ChatProvider } from './context/ChatContext.jsx'
 import { Toaster } from 'react-hot-toast'
 
 createRoot(document.getElementById('root')).render(
@@ -16,8 +17,20 @@ createRoot(document.getElementById('root')).render(
         <PlayersProvider>
           <AuctionProvider>
             <FixturesProvider>
-              <App />
-              <Toaster position="top-right" toastOptions={{ style: { background: '#101b31', color: '#f7f4e9', border: '1px solid #f3c747' } }} />
+              <ChatProvider>
+                <App />
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    style: {
+                      background: '#101b31',
+                      color: '#f7f4e9',
+                      border:
+                        '1px solid #f3c747',
+                    },
+                  }}
+                />
+              </ChatProvider>
             </FixturesProvider>
           </AuctionProvider>
         </PlayersProvider>

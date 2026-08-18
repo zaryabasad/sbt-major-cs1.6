@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FaEdit, FaPlus, FaRandom } from 'react-icons/fa'
 import toast from 'react-hot-toast'
+import { useAuth } from '../context/AuthContext'
 
 import FixtureModal from '../components/FixtureModal'
 import { useFixtures } from '../context/FixturesContext'
@@ -56,46 +57,11 @@ function generateRoundRobin(teams, date, time, format) {
 
 function Fixtures() {
   const { teams } = useTeams()
+  const {
+    isAdmin,
+    isSuperAdmin,
+  } = useAuth()
 
-    function splitTeamsIntoPools(teams) {
-      const poolASize = Math.ceil(teams.length / 2)
-
-      return {
-        poolA: teams.slice(0, poolASize),
-        poolB: teams.slice(poolASize),
-      }
-    }
-
-    function generatePoolFixtures(teams, date, time, format) {
-      const { poolA, poolB } = splitTeamsIntoPools(teams)
-
-      const poolAFixtures = generateRoundRobin(
-        poolA,
-        date,
-        time,
-        format
-      ).map((fixture) => ({
-        ...fixture,
-        pool: 'A',
-      }))
-
-      const poolBStart = new Date(`${date}T${time}`)
-      poolBStart.setMinutes(
-        poolBStart.getMinutes() + poolAFixtures.length * 75
-      )
-
-      const poolBFixtures = generateRoundRobin(
-        poolB,
-        poolBStart.toISOString().slice(0, 10),
-        poolBStart.toTimeString().slice(0, 5),
-        format
-      ).map((fixture) => ({
-        ...fixture,
-        pool: 'B',
-      }))
-
-      return [...poolAFixtures, ...poolBFixtures]
-    }
   const {
     fixtures,
     replaceFixtures,
@@ -114,7 +80,14 @@ function Fixtures() {
   const getTeam = (id) =>
     teams.find((team) => team.id === id)
 
-  const generateFixtures = async (event) => {
+  const generateFixtures = (event) => {
+    if (!isSuperAdmin) {
+      toast.error(
+        'Only the Super Admin can generate fixtures'
+      )
+      return
+    }
+
     event.preventDefault()
 
     if (teams.length < 2) {
@@ -124,27 +97,33 @@ function Fixtures() {
       return
     }
 
-    try {
-      await replaceFixtures(
-        generatePoolFixtures(
-          teams,
-          generator.date,
-          generator.time,
-          generator.format
-        )
-      )
+    // Full Round Robin:
+    // 3 teams = 3 fixtures
+    // 4 teams = 6 fixtures
+    // 5 teams = 10 fixtures
+    const newFixtures = generateRoundRobin(
+      teams,
+      generator.date,
+      generator.time,
+      generator.format
+    )
 
-      setIsGeneratorOpen(false)
-      toast.success('Pool fixtures generated')
-    } catch (error) {
-      console.error('FIXTURE GENERATION ERROR:', error)
-      toast.error(
-        error?.message || 'Failed to generate fixtures'
-      )
-    }
+    replaceFixtures(newFixtures)
+    setIsGeneratorOpen(false)
+
+    toast.success(
+      `${newFixtures.length} Round Robin fixtures generated`
+    )
   }
 
   const saveFixture = (fixture) => {
+    if (!isSuperAdmin) {
+      toast.error(
+        'Only the Super Admin can edit fixtures'
+      )
+      return
+    }
+
     updateFixture(fixture)
     setSelectedFixture(null)
 
@@ -153,6 +132,20 @@ function Fixtures() {
 
   return (
     <section className="fixtures-page">
+      <style>{`
+        .fixtures-readonly-note {
+          padding: 6px 9px;
+          border: 1px solid rgba(112,157,235,.20);
+          border-radius: 6px;
+          color: #9eb7e6;
+          background: rgba(65,105,180,.06);
+          font-size: .56rem;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+      `}</style>
 
       <header className="fixtures-heading">
         <div>
@@ -167,13 +160,21 @@ function Fixtures() {
           </p>
         </div>
 
-        <button
-          className="button button-primary"
-          onClick={() => setIsGeneratorOpen(true)}
-        >
-          <FaRandom />
-          Generate Round Robin
-        </button>
+        {isAdmin && !isSuperAdmin && (
+          <div className="fixtures-readonly-note">
+            Team Admin · Read Only
+          </div>
+        )}
+
+        {isSuperAdmin && (
+          <button
+            className="button button-primary"
+            onClick={() => setIsGeneratorOpen(true)}
+          >
+            <FaRandom />
+            Generate Round Robin
+          </button>
+        )}
       </header>
 
       {fixtures.length === 0 ? (
@@ -188,13 +189,15 @@ function Fixtures() {
             team roster.
           </p>
 
-          <button
-            className="button button-primary"
-            onClick={() => setIsGeneratorOpen(true)}
-          >
-            <FaRandom />
-            Generate Fixtures
-          </button>
+          {isSuperAdmin && (
+            <button
+              className="button button-primary"
+              onClick={() => setIsGeneratorOpen(true)}
+            >
+              <FaRandom />
+              Generate Fixtures
+            </button>
+          )}
 
         </section>
       ) : (
@@ -260,11 +263,13 @@ function Fixtures() {
                   <span className="fixture-format">
                     {fixture.format}
                   </span>
-<div className="fixture-score">
-  <span>{fixture.homeScore ?? 0}</span>
-  <b>:</b>
-  <span>{fixture.awayScore ?? 0}</span>
-</div>
+
+                  <div className="fixture-score">
+                    <span>{fixture.homeScore ?? 0}</span>
+                    <b>:</b>
+                    <span>{fixture.awayScore ?? 0}</span>
+                  </div>
+
                   <span
                     className={
                       fixture.status === 'Completed'
@@ -279,15 +284,17 @@ function Fixtures() {
                       : 'Upcoming'}
                   </span>
 
-                  <button
-                    className="icon-button"
-                    onClick={() =>
-                      setSelectedFixture(fixture)
-                    }
-                    aria-label="Edit fixture"
-                  >
-                    <FaEdit />
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      className="icon-button"
+                      onClick={() =>
+                        setSelectedFixture(fixture)
+                      }
+                      aria-label="Edit fixture"
+                    >
+                      <FaEdit />
+                    </button>
+                  )}
 
                 </div>
 
@@ -298,7 +305,7 @@ function Fixtures() {
         </div>
       )}
 
-      {isGeneratorOpen && (
+      {isSuperAdmin && isGeneratorOpen && (
         <div
           className="modal-backdrop"
           role="presentation"
@@ -418,7 +425,7 @@ function Fixtures() {
         </div>
       )}
 
-      {selectedFixture && (
+      {isSuperAdmin && selectedFixture && (
         <FixtureModal
           fixture={selectedFixture}
           teams={teams}

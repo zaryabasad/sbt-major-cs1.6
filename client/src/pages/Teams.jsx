@@ -15,9 +15,15 @@ import TeamDetailsModal from '../components/TeamDetailsModal'
 
 import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
+import { useAuth } from '../context/AuthContext'
 import { formatCurrency } from '../utils/formatCurrency'
 
 function Teams() {
+  const {
+    isAdmin,
+    isSuperAdmin,
+  } = useAuth()
+
   const {
     teams = [],
     addTeam,
@@ -41,6 +47,7 @@ function Teams() {
   })
 
   const openCreate = () => {
+    if (!isSuperAdmin) return
     setSelectedTeam(null)
 
     setForm({
@@ -55,6 +62,7 @@ function Teams() {
   }
 
   const openEdit = (team) => {
+    if (!isSuperAdmin) return
     setSelectedTeam(team)
 
     setForm({
@@ -113,6 +121,13 @@ function Teams() {
   }
 
   const saveTeam = async (event) => {
+    if (!isSuperAdmin) {
+      toast.error(
+        'Only the Super Admin can manage teams'
+      )
+      return
+    }
+
     event.preventDefault()
 
     try {
@@ -201,7 +216,7 @@ function Teams() {
   }
 
   const confirmDelete = async () => {
-    if (!teamToDelete) return
+    if (!isSuperAdmin || !teamToDelete) return
 
     try {
       await deleteTeam(teamToDelete.id)
@@ -252,14 +267,22 @@ function Teams() {
           </p>
         </div>
 
-        <button
-          className="button button-primary"
-          type="button"
-          onClick={openCreate}
-        >
-          <FaPlus />
-          Create Team
-        </button>
+        {isAdmin && !isSuperAdmin && (
+          <div className="teams-readonly-note">
+            Team Admin · Read Only
+          </div>
+        )}
+
+        {isSuperAdmin && (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={openCreate}
+          >
+            <FaPlus />
+            Create Team
+          </button>
+        )}
       </header>
 
       {/* ============================= */}
@@ -277,14 +300,16 @@ function Teams() {
             preparing the SBT MAJOR roster.
           </p>
 
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={openCreate}
-          >
-            <FaPlus />
-            Create First Team
-          </button>
+          {isSuperAdmin && (
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={openCreate}
+            >
+              <FaPlus />
+              Create First Team
+            </button>
+          )}
         </section>
       ) : (
         <div className="teams-grid">
@@ -339,29 +364,31 @@ function Teams() {
                     )}
                   </div>
 
-                  <div className="team-actions">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        openEdit(team)
-                      }}
-                      aria-label={`Edit ${team.name}`}
-                    >
-                      <FaEdit />
-                    </button>
+                  {isSuperAdmin && (
+                    <div className="team-actions">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openEdit(team)
+                        }}
+                        aria-label={`Edit ${team.name}`}
+                      >
+                        <FaEdit />
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setTeamToDelete(team)
-                      }}
-                      aria-label={`Delete ${team.name}`}
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setTeamToDelete(team)
+                        }}
+                        aria-label={`Delete ${team.name}`}
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <h2>{team.name}</h2>
@@ -409,7 +436,7 @@ function Teams() {
       {/* CREATE / EDIT MODAL */}
       {/* ============================= */}
 
-      {isModalOpen && (
+      {isSuperAdmin && isModalOpen && (
         <div
           className="modal-backdrop"
           onMouseDown={(event) => {
@@ -690,7 +717,7 @@ function Teams() {
       {/* DELETE CONFIRM */}
       {/* ============================= */}
 
-      {teamToDelete && (
+      {isSuperAdmin && teamToDelete && (
         <ConfirmDialog
           title="Delete Team"
           message={`Are you sure you want to delete ${teamToDelete.name}?`}

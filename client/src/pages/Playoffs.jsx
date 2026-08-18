@@ -1,122 +1,618 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FaTrophy, FaUsers, FaMedal } from 'react-icons/fa'
-import toast from 'react-hot-toast'
-
-import { useTeams } from '../context/TeamsContext'
-import { useFixtures } from '../context/FixturesContext'
-import { useAuth } from '../context/AuthContext'
+import { FaMedal, FaTrophy, FaUsers } from 'react-icons/fa'
 import PageHeader from '../components/PageHeader'
+import { useFixtures } from '../context/FixturesContext'
+import { useTeams } from '../context/TeamsContext'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
-const PLAYOFF_STORAGE_KEY = 'sbt-major-pools-playoffs'
+const PLAYOFF_STORAGE_KEY = 'sbt-major-playoffs'
 
-function splitIntoPools(teams) {
-  const sorted = [...teams]
-  const poolASize = Math.ceil(sorted.length / 2)
+function readPlayoffState() {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(PLAYOFF_STORAGE_KEY) || 'null'
+    )
 
-  return {
-    poolA: sorted.slice(0, poolASize),
-    poolB: sorted.slice(poolASize),
+    return stored || null
+  } catch {
+    return null
   }
 }
 
-function getTeam(teams, id) {
-  return teams.find((team) => team.id === id)
-}
+function Playoffs() {
+  const { teams } = useTeams()
+  const { fixtures } = useFixtures()
+  const {
+    isAdmin,
+    isSuperAdmin,
+  } = useAuth()
 
-function calculateStandings(teams, fixtures) {
-  const table = teams.map((team) => ({
-    teamId: team.id,
-    teamName: team.name,
-    played: 0,
-    wins: 0,
-    losses: 0,
-    rf: 0,
-    ra: 0,
-    mr: 0,
-    points: 0,
-  }))
+  const [playoff, setPlayoff] = useState(readPlayoffState)
+  const [playoffLoading, setPlayoffLoading] = useState(true)
+  const [playoffSaving, setPlayoffSaving] = useState(false)
 
-  const findRow = (id) =>
-    table.find((row) => row.teamId === id)
+  const getTeam = (id) =>
+    teams.find((team) => team.id === id)
 
-  fixtures
-    .filter(
-      (fixture) =>
-        fixture.status === 'Completed' &&
-        Number.isFinite(Number(fixture.homeScore)) &&
-        Number.isFinite(Number(fixture.awayScore))
-    )
-    .forEach((fixture) => {
-      const home = findRow(fixture.homeTeamId)
-      const away = findRow(fixture.awayTeamId)
+  const completedFixtures = useMemo(
+    () =>
+      fixtures.filter(
+        (fixture) =>
+          fixture.status === 'Completed' &&
+          fixture.winnerId
+      ),
+    [fixtures]
+  )
 
-      if (!home || !away) return
+  const standings = useMemo(() => {
+    return teams
+      .map((team) => {
+        let played = 0
+        let wins = 0
+        let losses = 0
+        let roundsFor = 0
+        let roundsAgainst = 0
 
-      const homeScore = Number(fixture.homeScore)
-      const awayScore = Number(fixture.awayScore)
+        completedFixtures.forEach((fixture) => {
+          const isHome = fixture.homeTeamId === team.id
+          const isAway = fixture.awayTeamId === team.id
 
-      home.played += 1
-      away.played += 1
+          if (!isHome && !isAway) return
 
-      home.rf += homeScore
-      home.ra += awayScore
+          played += 1
 
-      away.rf += awayScore
-      away.ra += homeScore
+          const homeScore = Number(fixture.homeScore || 0)
+          const awayScore = Number(fixture.awayScore || 0)
 
-      if (homeScore > awayScore) {
-        home.wins += 1
-        home.points += 3
-        away.losses += 1
-      } else if (awayScore > homeScore) {
-        away.wins += 1
-        away.points += 3
-        home.losses += 1
+          if (isHome) {
+            roundsFor += homeScore
+            roundsAgainst += awayScore
+          }
+
+          if (isAway) {
+            roundsFor += awayScore
+            roundsAgainst += homeScore
+          }
+
+          if (fixture.winnerId === team.id) {
+            wins += 1
+          } else {
+            losses += 1
+          }
+        })
+
+        return {
+          ...team,
+          played,
+          wins,
+          losses,
+          roundsFor,
+          roundsAgainst,
+          mr: roundsFor - roundsAgainst,
+          points: wins * 3,
+        }
+      })
+      .sort((a, b) => {
+        if (b.points !== a.points) {
+          return b.points - a.points
+        }
+
+        if (b.wins !== a.wins) {
+          return b.wins - a.wins
+        }
+
+        if (b.mr !== a.mr) {
+          return b.mr - a.mr
+        }
+
+        if (b.roundsFor !== a.roundsFor) {
+          return b.roundsFor - a.roundsFor
+        }
+
+        return 0
+      })
+  }, [teams, completedFixtures])
+
+  const qualifierCount =
+    teams.length >= 8
+      ? 8
+      : teams.length >= 4
+        ? 4
+        : 0
+
+  const qualifiedTeams = standings.slice(
+    0,
+    qualifierCount
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlayoffState() {
+      setPlayoffLoading(true)
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('playoff_state')
+        .select('id, state')
+        .eq('id', 1)
+        .maybeSingle()
+
+      if (cancelled) return
+
+      if (error) {
+        console.error(
+          'PLAYOFF LOAD ERROR:',
+          error
+        )
+
+        setPlayoffLoading(false)
+        return
       }
-    })
 
-  table.forEach((row) => {
-    row.mr = row.rf - row.ra
-  })
+      if (data?.state) {
+        setPlayoff(data.state)
+        localStorage.setItem(
+          PLAYOFF_STORAGE_KEY,
+          JSON.stringify(data.state)
+        )
+      } else {
+        const localState = readPlayoffState()
 
-  return table.sort(
-    (a, b) =>
-      b.points - a.points ||
-      b.wins - a.wins ||
-      b.mr - a.mr ||
-      b.rf - a.rf
-  )
+        if (localState) {
+          setPlayoff(localState)
+
+          if (isSuperAdmin) {
+            const { error: migrationError } =
+              await supabase
+                .from('playoff_state')
+                .upsert({
+                  id: 1,
+                  state: localState,
+                })
+
+            if (migrationError) {
+              console.error(
+                'PLAYOFF MIGRATION ERROR:',
+                migrationError
+              )
+            }
+          }
+        } else {
+          setPlayoff(null)
+        }
+      }
+
+      setPlayoffLoading(false)
+    }
+
+    loadPlayoffState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSuperAdmin])
+
+  useEffect(() => {
+    if (playoff) {
+      localStorage.setItem(
+        PLAYOFF_STORAGE_KEY,
+        JSON.stringify(playoff)
+      )
+    }
+  }, [playoff])
+
+  const savePlayoffState = async (nextState) => {
+    if (!isSuperAdmin) return false
+
+    setPlayoffSaving(true)
+
+    const {
+      error,
+    } = await supabase
+      .from('playoff_state')
+      .upsert({
+        id: 1,
+        state: nextState,
+      })
+
+    setPlayoffSaving(false)
+
+    if (error) {
+      console.error(
+        'PLAYOFF SAVE ERROR:',
+        error
+      )
+      alert(
+        error.message ||
+          'Failed to save playoff state.'
+      )
+      return false
+    }
+
+    localStorage.setItem(
+      PLAYOFF_STORAGE_KEY,
+      JSON.stringify(nextState)
+    )
+
+    return true
+  }
+
+  const generatePlayoffs = async () => {
+    if (!isSuperAdmin) {
+      return false
+    }
+    if (qualifiedTeams.length < 4) return
+
+    const seeds = qualifiedTeams.map(
+      (team) => team.id
+    )
+
+    if (qualifiedTeams.length === 8) {
+      const nextState = {
+        type: '8-team',
+        seeds,
+
+        quarterFinals: [
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: seeds[0],
+            awayTeamId: seeds[7],
+            winnerId: '',
+          },
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: seeds[3],
+            awayTeamId: seeds[4],
+            winnerId: '',
+          },
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: seeds[1],
+            awayTeamId: seeds[6],
+            winnerId: '',
+          },
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: seeds[2],
+            awayTeamId: seeds[5],
+            winnerId: '',
+          },
+        ],
+
+        semiFinals: [
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: '',
+            awayTeamId: '',
+            winnerId: '',
+          },
+          {
+            id: crypto.randomUUID(),
+            homeTeamId: '',
+            awayTeamId: '',
+            winnerId: '',
+          },
+        ],
+
+        final: {
+          id: crypto.randomUUID(),
+          homeTeamId: '',
+          awayTeamId: '',
+          winnerId: '',
+        },
+      }
+
+      setPlayoff(nextState)
+      await savePlayoffState(nextState)
+
+      return
+    }
+
+    const nextState = {
+      type: '4-team',
+      seeds,
+
+      quarterFinals: [],
+
+      semiFinals: [
+        {
+          id: crypto.randomUUID(),
+          homeTeamId: seeds[0],
+          awayTeamId: seeds[3],
+          winnerId: '',
+        },
+        {
+          id: crypto.randomUUID(),
+          homeTeamId: seeds[1],
+          awayTeamId: seeds[2],
+          winnerId: '',
+        },
+      ],
+
+      final: {
+        id: crypto.randomUUID(),
+        homeTeamId: '',
+        awayTeamId: '',
+        winnerId: '',
+      },
+    }
+  }
+
+ const setMatchWinner = async (
+  round,
+  index,
+  winnerId
+) => {
+  if (!isSuperAdmin) return false
+  if (!playoff || !winnerId) return false
+
+  const next = structuredClone(playoff)
+
+  // Grand Final is an object, not an array
+  if (round === 'final') {
+    next.final.winnerId = winnerId
+    setPlayoff(next)
+    return await savePlayoffState(
+      next
+    )
+  }
+
+  // Quarter Finals / Semi Finals
+  next[round][index].winnerId = winnerId
+
+  if (round === 'quarterFinals' && next.type === '8-team') {
+    if (index === 0) {
+      next.semiFinals[0].homeTeamId = winnerId
+    }
+
+    if (index === 1) {
+      next.semiFinals[0].awayTeamId = winnerId
+    }
+
+    if (index === 2) {
+      next.semiFinals[1].homeTeamId = winnerId
+    }
+
+    if (index === 3) {
+      next.semiFinals[1].awayTeamId = winnerId
+    }
+
+    // Reset later stages when QF changes
+    next.semiFinals[index < 2 ? 0 : 1].winnerId = ''
+
+    next.final.homeTeamId = ''
+    next.final.awayTeamId = ''
+    next.final.winnerId = ''
+  }
+
+  if (round === 'semiFinals') {
+    if (index === 0) {
+      next.final.homeTeamId = winnerId
+    }
+
+    if (index === 1) {
+      next.final.awayTeamId = winnerId
+    }
+
+    // Reset final winner if semifinal changes
+    next.final.winnerId = ''
+  }
+
+  setPlayoff(next)
 }
+  
 
-function PoolTable({ title, teams, fixtures }) {
-  const standings = useMemo(
-    () => calculateStandings(teams, fixtures),
-    [teams, fixtures]
-  )
+  const resetPlayoffs = () => {
+    setPlayoff(null)
+
+    localStorage.removeItem(
+      PLAYOFF_STORAGE_KEY
+    )
+  }
+
+  const MatchCard = ({
+    match,
+    round,
+    index,
+    label,
+  }) => {
+    const home = getTeam(match?.homeTeamId)
+    const away = getTeam(match?.awayTeamId)
+
+    const ready = home && away
+
+    return (
+      <article className="glass-card playoff-match">
+
+        <span className="playoff-match-number">
+          {label}
+        </span>
+
+        <div
+          className={
+            match?.winnerId === home?.id
+              ? 'playoff-team winner'
+              : 'playoff-team'
+          }
+        >
+          <span>
+            {home?.name || 'TBD'}
+          </span>
+
+          {match?.winnerId === home?.id && (
+            <FaTrophy />
+          )}
+        </div>
+
+        <div className="playoff-vs">
+          VS
+        </div>
+
+        <div
+          className={
+            match?.winnerId === away?.id
+              ? 'playoff-team winner'
+              : 'playoff-team'
+          }
+        >
+          <span>
+            {away?.name || 'TBD'}
+          </span>
+
+          {match?.winnerId === away?.id && (
+            <FaTrophy />
+          )}
+        </div>
+
+        {ready && isSuperAdmin ? (
+          <label style={{ marginTop: 14 }}>
+            Winner
+
+            <select
+              value={match.winnerId}
+              onChange={(event) =>
+                setMatchWinner(
+                  round,
+                  index,
+                  event.target.value
+                )
+              }
+            >
+              <option value="">
+                Select winner
+              </option>
+
+              <option value={home.id}>
+                {home.name}
+              </option>
+
+              <option value={away.id}>
+                {away.name}
+              </option>
+            </select>
+          </label>
+        ) : (
+          <small className="playoff-status">
+            Waiting for previous round
+          </small>
+        )}
+
+      </article>
+    )
+  }
+
+  const champion = playoff?.final?.winnerId
+    ? getTeam(playoff.final.winnerId)
+    : null
 
   return (
-    <section className="pool-section glass-card">
-      <div className="pool-heading">
-        <div>
-          <span className="eyebrow">{title}</span>
-          <h2>{title === 'Pool A' ? 'Pool A' : 'Pool B'}</h2>
+    <section className="playoffs-page">
+      <style>{`
+        .playoffs-readonly-note {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          margin:0 0 16px;
+          padding:10px 13px;
+          border:1px solid rgba(112,157,235,.18);
+          border-radius:8px;
+          background:rgba(65,105,180,.05);
+        }
+
+        .playoffs-readonly-note strong {
+          color:#dce7ff;
+          font-size:.64rem;
+          text-transform:uppercase;
+          letter-spacing:.06em;
+        }
+
+        .playoffs-readonly-note span {
+          color:#7f91ae;
+          font-size:.58rem;
+        }
+
+        @media (max-width: 720px) {
+          .playoffs-readonly-note {
+            flex-direction:column;
+            align-items:flex-start;
+          }
+        }
+      `}</style>
+
+      <PageHeader
+        title="Playoffs"
+        description="Follow the road to the SBT MAJOR championship."
+      />
+
+      {isAdmin && !isSuperAdmin && (
+        <section className="glass-card playoffs-readonly-note">
+          <strong>Team Admin · Read Only</strong>
+          <span>
+            Playoff bracket and results are controlled by the Super Admin.
+          </span>
+        </section>
+      )}
+
+      {playoffLoading && (
+        <section className="glass-card playoff-empty">
+          Loading championship data…
+        </section>
+      )}
+
+      <div className="playoffs-summary">
+
+        <div className="glass-card playoff-summary-card">
+          <FaUsers />
+
+          <div>
+            <span>Total Teams</span>
+            <strong>{teams.length}</strong>
+          </div>
         </div>
 
-        <span className="pool-team-count">
-          <FaUsers /> {teams.length} Teams
-        </span>
+        <div className="glass-card playoff-summary-card">
+          <FaMedal />
+
+          <div>
+            <span>Qualified</span>
+            <strong>{qualifierCount}</strong>
+          </div>
+        </div>
+
+        <div className="glass-card playoff-summary-card">
+          <FaTrophy />
+
+          <div>
+            <span>Champion</span>
+            <strong>
+              {champion?.name || 'TBD'}
+            </strong>
+          </div>
+        </div>
+
       </div>
 
-      {teams.length === 0 ? (
-        <div className="empty-state">
-          No teams in this pool.
-        </div>
-      ) : (
-        <div className="standings-table-wrap">
-          <table className="standings-table">
+      <section className="glass-card">
+
+        <header className="playoff-round-header">
+          <div>
+            <span>Round Robin</span>
+            <h2>Standings</h2>
+          </div>
+        </header>
+
+        <div style={{ overflowX: 'auto' }}>
+
+          <table className="leaderboard-table">
+
             <thead>
               <tr>
-                <th>#</th>
+                <th>Seed</th>
                 <th>Team</th>
                 <th>P</th>
                 <th>W</th>
@@ -124,490 +620,258 @@ function PoolTable({ title, teams, fixtures }) {
                 <th>RF</th>
                 <th>RA</th>
                 <th>MR</th>
-                <th>PTS</th>
+                <th>Points</th>
+                <th>Status</th>
               </tr>
             </thead>
 
             <tbody>
-              {standings.map((row, index) => (
-                <tr key={row.teamId}>
-                  <td>
-                    <span
-                      className={
-                        index < 2
-                          ? 'qualification-seed qualified'
-                          : 'qualification-seed'
-                      }
-                    >
-                      {index + 1}
-                    </span>
-                  </td>
+              {standings.map((team, index) => {
+                const qualified =
+                  index < qualifierCount
 
-                  <td>
-                    <strong>{row.teamName}</strong>
+                return (
+                  <tr key={team.id}>
 
-                    {index < 2 && (
-                      <small className="qualified-label">
-                        QUALIFIED
-                      </small>
-                    )}
-                  </td>
+                    <td>
+                      #{index + 1}
+                    </td>
 
-                  <td>{row.played}</td>
-                  <td>{row.wins}</td>
-                  <td>{row.losses}</td>
-                  <td>{row.rf}</td>
-                  <td>{row.ra}</td>
+                    <td>
+                      <strong>
+                        {team.name}
+                      </strong>
+                    </td>
 
-                  <td
-                    className={
-                      row.mr > 0
-                        ? 'mr-positive'
-                        : row.mr < 0
-                          ? 'mr-negative'
-                          : ''
-                    }
-                  >
-                    {row.mr > 0
-                      ? `+${row.mr}`
-                      : row.mr}
-                  </td>
+                    <td>{team.played}</td>
 
-                  <td>
-                    <strong>{row.points}</strong>
-                  </td>
-                </tr>
-              ))}
+                    <td>{team.wins}</td>
+
+                    <td>{team.losses}</td>
+
+                    <td>{team.roundsFor}</td>
+
+                    <td>{team.roundsAgainst}</td>
+
+                    <td>
+                      <strong>
+                        {team.mr > 0
+                          ? `+${team.mr}`
+                          : team.mr}
+                      </strong>
+                    </td>
+
+                    <td>
+                      <strong>
+                        {team.points}
+                      </strong>
+                    </td>
+
+                    <td>
+                      {qualified
+                        ? 'QUALIFIED'
+                        : 'ELIMINATED'}
+                    </td>
+
+                  </tr>
+                )
+              })}
             </tbody>
+
           </table>
-        </div>
-      )}
 
-      <div className="pool-note">
-        Tie-break: Points → Wins → MR → Rounds For
-      </div>
-    </section>
-  )
-}
-
-function PlayoffMatch({
-  title,
-  homeTeam,
-  awayTeam,
-  winnerId,
-  onWinnerChange,
-  isAdmin,
-}) {
-  return (
-    <article className="playoff-match glass-card">
-      <div className="playoff-match-title">
-        {title}
-      </div>
-
-      <div className="playoff-team">
-        {homeTeam?.name || 'TBD'}
-        {winnerId === homeTeam?.id && <FaTrophy />}
-      </div>
-
-      <div className="vs-divider">VS</div>
-
-      <div className="playoff-team">
-        {awayTeam?.name || 'TBD'}
-        {winnerId === awayTeam?.id && <FaTrophy />}
-      </div>
-
-      {isAdmin && homeTeam && awayTeam && (
-        <label className="winner-select">
-          Winner
-
-          <select
-            value={winnerId || ''}
-            onChange={(event) =>
-              onWinnerChange(event.target.value)
-            }
-          >
-            <option value="">
-              Select winner
-            </option>
-
-            <option value={homeTeam.id}>
-              {homeTeam.name}
-            </option>
-
-            <option value={awayTeam.id}>
-              {awayTeam.name}
-            </option>
-          </select>
-        </label>
-      )}
-
-      {!isAdmin && homeTeam && awayTeam && (
-        <span className="playoff-viewer-label">
-          Admin selects winner
-        </span>
-      )}
-    </article>
-  )
-}
-
-function Playoffs() {
-  const { teams } = useTeams()
-  const { fixtures } = useFixtures()
-  const { user } = useAuth()
-
-  const isAdmin = Boolean(user)
-
-  const [playoff, setPlayoff] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem(
-          PLAYOFF_STORAGE_KEY
-        ) || 'null'
-      )
-    } catch {
-      return null
-    }
-  })
-
-  const { poolA, poolB } = useMemo(
-    () => splitIntoPools(teams),
-    [teams]
-  )
-
-  const poolAFixtures = useMemo(
-    () =>
-      fixtures.filter(
-        (fixture) =>
-          poolA.some(
-            (team) =>
-              team.id === fixture.homeTeamId
-          ) &&
-          poolA.some(
-            (team) =>
-              team.id === fixture.awayTeamId
-          )
-      ),
-    [fixtures, poolA]
-  )
-
-  const poolBFixtures = useMemo(
-    () =>
-      fixtures.filter(
-        (fixture) =>
-          poolB.some(
-            (team) =>
-              team.id === fixture.homeTeamId
-          ) &&
-          poolB.some(
-            (team) =>
-              team.id === fixture.awayTeamId
-          )
-      ),
-    [fixtures, poolB]
-  )
-
-  const standingsA = useMemo(
-    () =>
-      calculateStandings(
-        poolA,
-        poolAFixtures
-      ),
-    [poolA, poolAFixtures]
-  )
-
-  const standingsB = useMemo(
-    () =>
-      calculateStandings(
-        poolB,
-        poolBFixtures
-      ),
-    [poolB, poolBFixtures]
-  )
-
-  const qualifiedA = standingsA.slice(0, 2)
-  const qualifiedB = standingsB.slice(0, 2)
-
-  const semi1Home = qualifiedA[0]
-    ? getTeam(
-        teams,
-        qualifiedA[0].teamId
-      )
-    : null
-
-  const semi1Away = qualifiedB[1]
-    ? getTeam(
-        teams,
-        qualifiedB[1].teamId
-      )
-    : null
-
-  const semi2Home = qualifiedB[0]
-    ? getTeam(
-        teams,
-        qualifiedB[0].teamId
-      )
-    : null
-
-  const semi2Away = qualifiedA[1]
-    ? getTeam(
-        teams,
-        qualifiedA[1].teamId
-      )
-    : null
-
-  const semi1Winner =
-    playoff?.semi1Winner || ''
-
-  const semi2Winner =
-    playoff?.semi2Winner || ''
-
-  const finalHome = getTeam(
-    teams,
-    semi1Winner
-  )
-
-  const finalAway = getTeam(
-    teams,
-    semi2Winner
-  )
-
-  const updatePlayoff = (changes) => {
-    if (!isAdmin) return
-
-    setPlayoff((current) => {
-      const next = {
-        ...(current || {}),
-        ...changes,
-      }
-
-      localStorage.setItem(
-        PLAYOFF_STORAGE_KEY,
-        JSON.stringify(next)
-      )
-
-      return next
-    })
-  }
-
-  const resetPlayoffs = () => {
-    if (!isAdmin) return
-
-    localStorage.removeItem(
-      PLAYOFF_STORAGE_KEY
-    )
-
-    setPlayoff(null)
-
-    toast.success('Playoffs reset')
-  }
-
-  useEffect(() => {
-    if (!teams.length) return
-
-    const poolIds = new Set(
-      [...poolA, ...poolB].map(
-        (team) => team.id
-      )
-    )
-
-    if (poolIds.size !== teams.length) {
-      setPlayoff(null)
-    }
-  }, [teams.length, poolA, poolB])
-
-  const finalWinner =
-    playoff?.finalWinner || ''
-
-  const champion = getTeam(
-    teams,
-    finalWinner
-  )
-
-  const enoughTeams = teams.length >= 4
-
-  return (
-    <main className="page-shell">
-      <PageHeader
-        title="PLAYOFFS"
-        description="Two-pool championship system — qualify, battle, and become the SBT MAJOR champion."
-      />
-
-      {!isAdmin && (
-        <section className="glass-card playoff-viewer-notice">
-          <FaTrophy />
-
-          <div>
-            <strong>
-              Viewer Mode
-            </strong>
-
-            <span>
-              Playoff results are controlled by
-              tournament administrators.
-            </span>
-          </div>
-        </section>
-      )}
-
-      <section className="playoff-hero glass-card">
-        <div>
-          <span className="eyebrow">
-            CHAMPIONSHIP FORMAT
-          </span>
-
-          <h2>
-            {teams.length} Teams · 2 Pools
-          </h2>
-
-          <p>
-            Top 2 teams from each pool advance
-            to the Semi Finals.
-          </p>
         </div>
 
-        <div className="format-badge">
-          POOL A <span>VS</span> POOL B
-        </div>
+        <p style={{ marginTop: 15 }}>
+          Tie-break order: Points → Wins → MR → Rounds For.
+        </p>
+
       </section>
 
-      {!enoughTeams ? (
-        <section className="empty-state glass-card">
+      {teams.length < 4 && (
+        <section className="glass-card playoff-empty">
+
           <FaUsers />
 
-          <h2>Need at least 4 teams</h2>
+          <h2>Not enough teams</h2>
 
           <p>
-            Add at least 4 teams to create
-            the championship stage.
+            Create at least 4 teams to start
+            the playoff stage.
           </p>
+
         </section>
-      ) : (
-        <>
-          <section className="pools-grid">
-            <PoolTable
-              title="Pool A"
-              teams={poolA}
-              fixtures={poolAFixtures}
-            />
+      )}
 
-            <PoolTable
-              title="Pool B"
-              teams={poolB}
-              fixtures={poolBFixtures}
-            />
-          </section>
+      {!playoffLoading && teams.length >= 4 && !playoff && (
+        <section className="glass-card playoff-empty">
 
-          <section className="qualification-banner glass-card">
-            <FaMedal />
+          <FaTrophy />
+
+          <h2>Playoff Bracket Ready</h2>
+
+          <p>
+            {teams.length === 8
+              ? 'All 8 teams will enter the Quarter Finals.'
+              : 'The top 4 teams will enter the Semi Finals.'}
+          </p>
+
+          {isSuperAdmin ? (
+            <button
+              className="button button-primary"
+              onClick={generatePlayoffs}
+              disabled={
+                completedFixtures.length === 0 ||
+                playoffSaving
+              }
+            >
+              {playoffSaving
+                ? 'Saving…'
+                : 'Generate Playoff Bracket'}
+            </button>
+          ) : (
+            <small>
+              Playoff management is controlled by the Super Admin.
+            </small>
+          )}
+
+          {completedFixtures.length === 0 && (
+            <small>
+              Complete Round Robin matches first.
+            </small>
+          )}
+
+        </section>
+      )}
+
+      {!playoffLoading && playoff && (
+        <section className="glass-card">
+
+          <header
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 25,
+            }}
+          >
 
             <div>
-              <strong>
-                Qualification
-              </strong>
+              <p className="eyebrow">
+                Championship Stage
+              </p>
 
-              <span>
-                Top 2 from Pool A + Top 2 from
-                Pool B → Semi Finals
-              </span>
+              <h2>
+                {playoff.type === '8-team'
+                  ? '8-Team Playoffs'
+                  : 'Top 4 Playoffs'}
+              </h2>
             </div>
-          </section>
 
-          <section className="championship-stage">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">
-                  CHAMPIONSHIP STAGE
+            {isSuperAdmin && (
+              <button
+                className="button button-secondary"
+                onClick={resetPlayoffs}
+                disabled={playoffSaving}
+              >
+                {playoffSaving
+                  ? 'Saving…'
+                  : 'Reset Playoffs'}
+              </button>
+            )}
+
+          </header>
+
+          <div className="playoff-bracket">
+
+            {playoff.type === '8-team' && (
+              <section className="playoff-round">
+
+                <header className="playoff-round-header">
+                  <span>Round 1</span>
+                  <h2>Quarter Finals</h2>
+                </header>
+
+                {playoff.quarterFinals.map(
+                  (match, index) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      round="quarterFinals"
+                      index={index}
+                      label={`QF ${index + 1}`}
+                    />
+                  )
+                )}
+
+              </section>
+            )}
+
+            <section className="playoff-round">
+
+              <header className="playoff-round-header">
+                <span>
+                  {playoff.type === '8-team'
+                    ? 'Round 2'
+                    : 'Round 1'}
                 </span>
 
-                <h2>
-                  Top 4 Playoffs
-                </h2>
-              </div>
+                <h2>Semi Finals</h2>
+              </header>
 
-              {isAdmin && (
-                <button
-                  className="button button-secondary"
-                  onClick={resetPlayoffs}
-                >
-                  RESET PLAYOFFS
-                </button>
+              {playoff.semiFinals.map(
+                (match, index) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    round="semiFinals"
+                    index={index}
+                    label={`SF ${index + 1}`}
+                  />
+                )
               )}
-            </div>
 
-            <div className="bracket-grid">
-              <div>
-                <div className="bracket-round-label">
-                  SEMI FINALS
-                </div>
+            </section>
 
-                <PlayoffMatch
-                  title="SF 1 · A1 vs B2"
-                  homeTeam={semi1Home}
-                  awayTeam={semi1Away}
-                  winnerId={semi1Winner}
-                  isAdmin={isAdmin}
-                  onWinnerChange={(winnerId) =>
-                    updatePlayoff({
-                      semi1Winner: winnerId,
-                      finalWinner: '',
-                    })
-                  }
-                />
+            <section className="playoff-round final-round">
 
-                <PlayoffMatch
-                  title="SF 2 · B1 vs A2"
-                  homeTeam={semi2Home}
-                  awayTeam={semi2Away}
-                  winnerId={semi2Winner}
-                  isAdmin={isAdmin}
-                  onWinnerChange={(winnerId) =>
-                    updatePlayoff({
-                      semi2Winner: winnerId,
-                      finalWinner: '',
-                    })
-                  }
-                />
+              <header className="playoff-round-header">
+                <span>Grand Final</span>
+                <h2>Final</h2>
+              </header>
+
+              <MatchCard
+                match={playoff.final}
+                round="final"
+                index={0}
+                label="FINAL"
+              />
+
+              <div
+                className="champion-box"
+                style={{ marginTop: 20 }}
+              >
+
+                <FaTrophy />
+
+                <span>
+                  SBT MAJOR CHAMPION
+                </span>
+
+                <strong>
+                  {champion?.name || 'TBD'}
+                </strong>
+
               </div>
 
-              <div className="final-column">
-                <div className="bracket-round-label">
-                  GRAND FINAL
-                </div>
+            </section>
 
-                <PlayoffMatch
-                  title="FINAL"
-                  homeTeam={finalHome}
-                  awayTeam={finalAway}
-                  winnerId={finalWinner}
-                  isAdmin={isAdmin}
-                  onWinnerChange={(winnerId) =>
-                    updatePlayoff({
-                      finalWinner: winnerId,
-                    })
-                  }
-                />
+          </div>
 
-                {champion && (
-                  <div className="champion-card">
-                    <FaTrophy />
-
-                    <span>CHAMPION</span>
-
-                    <h2>
-                      {champion.name}
-                    </h2>
-
-                    <p>
-                      SBT MAJOR CS 1.6
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        </>
+        </section>
       )}
-    </main>
+
+    </section>
   )
 }
 
