@@ -21,14 +21,12 @@ function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/auction" element={<Auction />} />
           <Route path="/teams" element={<Teams />} />
+          <Route path="/players" element={<Players />} />
           <Route path="/fixtures" element={<Fixtures />} />
           <Route path="/playoffs" element={<Playoffs />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/chat" element={<Chat />} />
-          <Route
-            path="/player-register"
-            element={<PlayerRegister />}
-          />
+          <Route path="/player-register" element={<PlayerRegister />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/admin" element={<Admin />} />
