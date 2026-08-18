@@ -9,6 +9,7 @@ import Login from '../pages/Login'
 import Playoffs from '../pages/Playoffs'
 import Stats from '../pages/Stats'
 import Teams from '../pages/Teams'
+import VoiceChat from '../pages/VoiceChat'
 import ProtectedRoute from '../components/ProtectedRoute'
 import Players from '../pages/Players'
 import PlayerRegister from '../pages/PlayerRegister'
@@ -26,6 +27,7 @@ function AppRoutes() {
           <Route path="/playoffs" element={<Playoffs />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/voice" element={<VoiceChat />} />
           <Route path="/player-register" element={<PlayerRegister />} />
 
           <Route element={<ProtectedRoute />}>
