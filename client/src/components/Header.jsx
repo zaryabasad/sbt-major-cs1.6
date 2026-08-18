@@ -6,6 +6,7 @@ const navigation = [
   { label: 'Live Auction', to: '/auction' },
   { label: 'Live Chat', to: '/chat' },
   { label: 'Teams', to: '/teams' },
+  { label: 'Players', to: '/players' },
   { label: 'Fixtures', to: '/fixtures' },
   { label: 'Playoffs', to: '/playoffs' },
   { label: 'Statistics', to: '/stats' },
