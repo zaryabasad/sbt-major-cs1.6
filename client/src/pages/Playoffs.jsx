@@ -23,17 +23,13 @@ function readPlayoffState() {
 function Playoffs() {
   const { teams } = useTeams()
   const { fixtures } = useFixtures()
-  const {
-    isAdmin,
-    isSuperAdmin,
-  } = useAuth()
+  const { isAdmin, isSuperAdmin } = useAuth()
 
   const [playoff, setPlayoff] = useState(readPlayoffState)
   const [playoffLoading, setPlayoffLoading] = useState(true)
   const [playoffSaving, setPlayoffSaving] = useState(false)
 
-  const getTeam = (id) =>
-    teams.find((team) => team.id === id)
+  const getTeam = (id) => teams.find((team) => team.id === id)
 
   const completedFixtures = useMemo(
     () =>
@@ -94,37 +90,18 @@ function Playoffs() {
         }
       })
       .sort((a, b) => {
-        if (b.points !== a.points) {
-          return b.points - a.points
-        }
-
-        if (b.wins !== a.wins) {
-          return b.wins - a.wins
-        }
-
-        if (b.mr !== a.mr) {
-          return b.mr - a.mr
-        }
-
-        if (b.roundsFor !== a.roundsFor) {
-          return b.roundsFor - a.roundsFor
-        }
-
+        if (b.points !== a.points) return b.points - a.points
+        if (b.wins !== a.wins) return b.wins - a.wins
+        if (b.mr !== a.mr) return b.mr - a.mr
+        if (b.roundsFor !== a.roundsFor) return b.roundsFor - a.roundsFor
         return 0
       })
   }, [teams, completedFixtures])
 
   const qualifierCount =
-    teams.length >= 8
-      ? 8
-      : teams.length >= 4
-        ? 4
-        : 0
+    teams.length >= 8 ? 8 : teams.length >= 4 ? 4 : 0
 
-  const qualifiedTeams = standings.slice(
-    0,
-    qualifierCount
-  )
+  const qualifiedTeams = standings.slice(0, qualifierCount)
 
   useEffect(() => {
     let cancelled = false
@@ -132,10 +109,7 @@ function Playoffs() {
     async function loadPlayoffState() {
       setPlayoffLoading(true)
 
-      const {
-        data,
-        error,
-      } = await supabase
+      const { data, error } = await supabase
         .from('playoff_state')
         .select('id, state')
         .eq('id', 1)
@@ -144,11 +118,7 @@ function Playoffs() {
       if (cancelled) return
 
       if (error) {
-        console.error(
-          'PLAYOFF LOAD ERROR:',
-          error
-        )
-
+        console.error('PLAYOFF LOAD ERROR:', error)
         setPlayoffLoading(false)
         return
       }
@@ -166,13 +136,9 @@ function Playoffs() {
           setPlayoff(localState)
 
           if (isSuperAdmin) {
-            const { error: migrationError } =
-              await supabase
-                .from('playoff_state')
-                .upsert({
-                  id: 1,
-                  state: localState,
-                })
+            const { error: migrationError } = await supabase
+              .from('playoff_state')
+              .upsert({ id: 1, state: localState })
 
             if (migrationError) {
               console.error(
@@ -210,26 +176,15 @@ function Playoffs() {
 
     setPlayoffSaving(true)
 
-    const {
-      error,
-    } = await supabase
+    const { error } = await supabase
       .from('playoff_state')
-      .upsert({
-        id: 1,
-        state: nextState,
-      })
+      .upsert({ id: 1, state: nextState })
 
     setPlayoffSaving(false)
 
     if (error) {
-      console.error(
-        'PLAYOFF SAVE ERROR:',
-        error
-      )
-      alert(
-        error.message ||
-          'Failed to save playoff state.'
-      )
+      console.error('PLAYOFF SAVE ERROR:', error)
+      alert(error.message || 'Failed to save playoff state.')
       return false
     }
 
@@ -242,62 +197,26 @@ function Playoffs() {
   }
 
   const generatePlayoffs = async () => {
-    if (!isSuperAdmin) {
-      return false
-    }
-    if (qualifiedTeams.length < 4) return
+    if (!isSuperAdmin) return false
+    if (qualifiedTeams.length < 4) return false
 
-    const seeds = qualifiedTeams.map(
-      (team) => team.id
-    )
+    const seeds = qualifiedTeams.map((team) => team.id)
+    let nextState
 
     if (qualifiedTeams.length === 8) {
-      const nextState = {
+      nextState = {
         type: '8-team',
         seeds,
-
         quarterFinals: [
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: seeds[0],
-            awayTeamId: seeds[7],
-            winnerId: '',
-          },
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: seeds[3],
-            awayTeamId: seeds[4],
-            winnerId: '',
-          },
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: seeds[1],
-            awayTeamId: seeds[6],
-            winnerId: '',
-          },
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: seeds[2],
-            awayTeamId: seeds[5],
-            winnerId: '',
-          },
+          { id: crypto.randomUUID(), homeTeamId: seeds[0], awayTeamId: seeds[7], winnerId: '' },
+          { id: crypto.randomUUID(), homeTeamId: seeds[3], awayTeamId: seeds[4], winnerId: '' },
+          { id: crypto.randomUUID(), homeTeamId: seeds[1], awayTeamId: seeds[6], winnerId: '' },
+          { id: crypto.randomUUID(), homeTeamId: seeds[2], awayTeamId: seeds[5], winnerId: '' },
         ],
-
         semiFinals: [
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: '',
-            awayTeamId: '',
-            winnerId: '',
-          },
-          {
-            id: crypto.randomUUID(),
-            homeTeamId: '',
-            awayTeamId: '',
-            winnerId: '',
-          },
+          { id: crypto.randomUUID(), homeTeamId: '', awayTeamId: '', winnerId: '' },
+          { id: crypto.randomUUID(), homeTeamId: '', awayTeamId: '', winnerId: '' },
         ],
-
         final: {
           id: crypto.randomUUID(),
           homeTeamId: '',
@@ -305,194 +224,120 @@ function Playoffs() {
           winnerId: '',
         },
       }
+    } else {
+      nextState = {
+        type: '4-team',
+        seeds,
+        quarterFinals: [],
+        semiFinals: [
+          { id: crypto.randomUUID(), homeTeamId: seeds[0], awayTeamId: seeds[3], winnerId: '' },
+          { id: crypto.randomUUID(), homeTeamId: seeds[1], awayTeamId: seeds[2], winnerId: '' },
+        ],
+        final: {
+          id: crypto.randomUUID(),
+          homeTeamId: '',
+          awayTeamId: '',
+          winnerId: '',
+        },
+      }
+    }
 
-      setPlayoff(nextState)
-      await savePlayoffState(nextState)
+    setPlayoff(nextState)
+    const saved = await savePlayoffState(nextState)
 
+    if (!saved) {
+      setPlayoff(null)
+    }
+
+    return saved
+  }
+
+  const setMatchWinner = async (round, index, winnerId) => {
+    if (!isSuperAdmin || !playoff || !winnerId) return false
+
+    const next = structuredClone(playoff)
+
+    if (round === 'final') {
+      next.final.winnerId = winnerId
+      setPlayoff(next)
+      return await savePlayoffState(next)
+    }
+
+    next[round][index].winnerId = winnerId
+
+    if (round === 'quarterFinals' && next.type === '8-team') {
+      if (index === 0) next.semiFinals[0].homeTeamId = winnerId
+      if (index === 1) next.semiFinals[0].awayTeamId = winnerId
+      if (index === 2) next.semiFinals[1].homeTeamId = winnerId
+      if (index === 3) next.semiFinals[1].awayTeamId = winnerId
+
+      next.semiFinals[index < 2 ? 0 : 1].winnerId = ''
+      next.final.homeTeamId = ''
+      next.final.awayTeamId = ''
+      next.final.winnerId = ''
+    }
+
+    if (round === 'semiFinals') {
+      if (index === 0) next.final.homeTeamId = winnerId
+      if (index === 1) next.final.awayTeamId = winnerId
+      next.final.winnerId = ''
+    }
+
+    setPlayoff(next)
+    return await savePlayoffState(next)
+  }
+
+  const resetPlayoffs = async () => {
+    if (!isSuperAdmin) return
+
+    const { error } = await supabase
+      .from('playoff_state')
+      .delete()
+      .eq('id', 1)
+
+    if (error) {
+      console.error('PLAYOFF RESET ERROR:', error)
+      alert(error.message || 'Failed to reset playoffs.')
       return
     }
 
-    const nextState = {
-      type: '4-team',
-      seeds,
-
-      quarterFinals: [],
-
-      semiFinals: [
-        {
-          id: crypto.randomUUID(),
-          homeTeamId: seeds[0],
-          awayTeamId: seeds[3],
-          winnerId: '',
-        },
-        {
-          id: crypto.randomUUID(),
-          homeTeamId: seeds[1],
-          awayTeamId: seeds[2],
-          winnerId: '',
-        },
-      ],
-
-      final: {
-        id: crypto.randomUUID(),
-        homeTeamId: '',
-        awayTeamId: '',
-        winnerId: '',
-      },
-    }
-  }
-
- const setMatchWinner = async (
-  round,
-  index,
-  winnerId
-) => {
-  if (!isSuperAdmin) return false
-  if (!playoff || !winnerId) return false
-
-  const next = structuredClone(playoff)
-
-  // Grand Final is an object, not an array
-  if (round === 'final') {
-    next.final.winnerId = winnerId
-    setPlayoff(next)
-    return await savePlayoffState(
-      next
-    )
-  }
-
-  // Quarter Finals / Semi Finals
-  next[round][index].winnerId = winnerId
-
-  if (round === 'quarterFinals' && next.type === '8-team') {
-    if (index === 0) {
-      next.semiFinals[0].homeTeamId = winnerId
-    }
-
-    if (index === 1) {
-      next.semiFinals[0].awayTeamId = winnerId
-    }
-
-    if (index === 2) {
-      next.semiFinals[1].homeTeamId = winnerId
-    }
-
-    if (index === 3) {
-      next.semiFinals[1].awayTeamId = winnerId
-    }
-
-    // Reset later stages when QF changes
-    next.semiFinals[index < 2 ? 0 : 1].winnerId = ''
-
-    next.final.homeTeamId = ''
-    next.final.awayTeamId = ''
-    next.final.winnerId = ''
-  }
-
-  if (round === 'semiFinals') {
-    if (index === 0) {
-      next.final.homeTeamId = winnerId
-    }
-
-    if (index === 1) {
-      next.final.awayTeamId = winnerId
-    }
-
-    // Reset final winner if semifinal changes
-    next.final.winnerId = ''
-  }
-
-  setPlayoff(next)
-}
-  
-
-  const resetPlayoffs = () => {
     setPlayoff(null)
-
-    localStorage.removeItem(
-      PLAYOFF_STORAGE_KEY
-    )
+    localStorage.removeItem(PLAYOFF_STORAGE_KEY)
   }
 
-  const MatchCard = ({
-    match,
-    round,
-    index,
-    label,
-  }) => {
+  const MatchCard = ({ match, round, index, label }) => {
     const home = getTeam(match?.homeTeamId)
     const away = getTeam(match?.awayTeamId)
-
-    const ready = home && away
+    const ready = Boolean(home && away)
 
     return (
       <article className="glass-card playoff-match">
+        <span className="playoff-match-number">{label}</span>
 
-        <span className="playoff-match-number">
-          {label}
-        </span>
-
-        <div
-          className={
-            match?.winnerId === home?.id
-              ? 'playoff-team winner'
-              : 'playoff-team'
-          }
-        >
-          <span>
-            {home?.name || 'TBD'}
-          </span>
-
-          {match?.winnerId === home?.id && (
-            <FaTrophy />
-          )}
+        <div className={match?.winnerId === home?.id ? 'playoff-team winner' : 'playoff-team'}>
+          <span>{home?.name || 'TBD'}</span>
+          {match?.winnerId === home?.id && <FaTrophy />}
         </div>
 
-        <div className="playoff-vs">
-          VS
-        </div>
+        <div className="playoff-vs">VS</div>
 
-        <div
-          className={
-            match?.winnerId === away?.id
-              ? 'playoff-team winner'
-              : 'playoff-team'
-          }
-        >
-          <span>
-            {away?.name || 'TBD'}
-          </span>
-
-          {match?.winnerId === away?.id && (
-            <FaTrophy />
-          )}
+        <div className={match?.winnerId === away?.id ? 'playoff-team winner' : 'playoff-team'}>
+          <span>{away?.name || 'TBD'}</span>
+          {match?.winnerId === away?.id && <FaTrophy />}
         </div>
 
         {ready && isSuperAdmin ? (
           <label style={{ marginTop: 14 }}>
             Winner
-
             <select
               value={match.winnerId}
               onChange={(event) =>
-                setMatchWinner(
-                  round,
-                  index,
-                  event.target.value
-                )
+                setMatchWinner(round, index, event.target.value)
               }
             >
-              <option value="">
-                Select winner
-              </option>
-
-              <option value={home.id}>
-                {home.name}
-              </option>
-
-              <option value={away.id}>
-                {away.name}
-              </option>
+              <option value="">Select winner</option>
+              <option value={home.id}>{home.name}</option>
+              <option value={away.id}>{away.name}</option>
             </select>
           </label>
         ) : (
@@ -500,7 +345,6 @@ function Playoffs() {
             Waiting for previous round
           </small>
         )}
-
       </article>
     )
   }
@@ -523,19 +367,16 @@ function Playoffs() {
           border-radius:8px;
           background:rgba(65,105,180,.05);
         }
-
         .playoffs-readonly-note strong {
           color:#dce7ff;
           font-size:.64rem;
           text-transform:uppercase;
           letter-spacing:.06em;
         }
-
         .playoffs-readonly-note span {
           color:#7f91ae;
           font-size:.58rem;
         }
-
         @media (max-width: 720px) {
           .playoffs-readonly-note {
             flex-direction:column;
@@ -552,9 +393,7 @@ function Playoffs() {
       {isAdmin && !isSuperAdmin && (
         <section className="glass-card playoffs-readonly-note">
           <strong>Team Admin · Read Only</strong>
-          <span>
-            Playoff bracket and results are controlled by the Super Admin.
-          </span>
+          <span>Playoff bracket and results are controlled by the Super Admin.</span>
         </section>
       )}
 
@@ -565,10 +404,8 @@ function Playoffs() {
       )}
 
       <div className="playoffs-summary">
-
         <div className="glass-card playoff-summary-card">
           <FaUsers />
-
           <div>
             <span>Total Teams</span>
             <strong>{teams.length}</strong>
@@ -577,7 +414,6 @@ function Playoffs() {
 
         <div className="glass-card playoff-summary-card">
           <FaMedal />
-
           <div>
             <span>Qualified</span>
             <strong>{qualifierCount}</strong>
@@ -586,19 +422,14 @@ function Playoffs() {
 
         <div className="glass-card playoff-summary-card">
           <FaTrophy />
-
           <div>
             <span>Champion</span>
-            <strong>
-              {champion?.name || 'TBD'}
-            </strong>
+            <strong>{champion?.name || 'TBD'}</strong>
           </div>
         </div>
-
       </div>
 
       <section className="glass-card">
-
         <header className="playoff-round-header">
           <div>
             <span>Round Robin</span>
@@ -607,9 +438,7 @@ function Playoffs() {
         </header>
 
         <div style={{ overflowX: 'auto' }}>
-
           <table className="leaderboard-table">
-
             <thead>
               <tr>
                 <th>Seed</th>
@@ -624,92 +453,44 @@ function Playoffs() {
                 <th>Status</th>
               </tr>
             </thead>
-
             <tbody>
               {standings.map((team, index) => {
-                const qualified =
-                  index < qualifierCount
-
+                const qualified = index < qualifierCount
                 return (
                   <tr key={team.id}>
-
-                    <td>
-                      #{index + 1}
-                    </td>
-
-                    <td>
-                      <strong>
-                        {team.name}
-                      </strong>
-                    </td>
-
+                    <td>#{index + 1}</td>
+                    <td><strong>{team.name}</strong></td>
                     <td>{team.played}</td>
-
                     <td>{team.wins}</td>
-
                     <td>{team.losses}</td>
-
                     <td>{team.roundsFor}</td>
-
                     <td>{team.roundsAgainst}</td>
-
-                    <td>
-                      <strong>
-                        {team.mr > 0
-                          ? `+${team.mr}`
-                          : team.mr}
-                      </strong>
-                    </td>
-
-                    <td>
-                      <strong>
-                        {team.points}
-                      </strong>
-                    </td>
-
-                    <td>
-                      {qualified
-                        ? 'QUALIFIED'
-                        : 'ELIMINATED'}
-                    </td>
-
+                    <td><strong>{team.mr > 0 ? `+${team.mr}` : team.mr}</strong></td>
+                    <td><strong>{team.points}</strong></td>
+                    <td>{qualified ? 'QUALIFIED' : 'ELIMINATED'}</td>
                   </tr>
                 )
               })}
             </tbody>
-
           </table>
-
         </div>
-
         <p style={{ marginTop: 15 }}>
           Tie-break order: Points → Wins → MR → Rounds For.
         </p>
-
       </section>
 
       {teams.length < 4 && (
         <section className="glass-card playoff-empty">
-
           <FaUsers />
-
           <h2>Not enough teams</h2>
-
-          <p>
-            Create at least 4 teams to start
-            the playoff stage.
-          </p>
-
+          <p>Create at least 4 teams to start the playoff stage.</p>
         </section>
       )}
 
       {!playoffLoading && teams.length >= 4 && !playoff && (
         <section className="glass-card playoff-empty">
-
           <FaTrophy />
-
           <h2>Playoff Bracket Ready</h2>
-
           <p>
             {teams.length === 8
               ? 'All 8 teams will enter the Quarter Finals.'
@@ -721,32 +502,23 @@ function Playoffs() {
               className="button button-primary"
               onClick={generatePlayoffs}
               disabled={
-                completedFixtures.length === 0 ||
-                playoffSaving
+                completedFixtures.length === 0 || playoffSaving
               }
             >
-              {playoffSaving
-                ? 'Saving…'
-                : 'Generate Playoff Bracket'}
+              {playoffSaving ? 'Saving…' : 'Generate Playoff Bracket'}
             </button>
           ) : (
-            <small>
-              Playoff management is controlled by the Super Admin.
-            </small>
+            <small>Playoff management is controlled by the Super Admin.</small>
           )}
 
           {completedFixtures.length === 0 && (
-            <small>
-              Complete Round Robin matches first.
-            </small>
+            <small>Complete Round Robin matches first.</small>
           )}
-
         </section>
       )}
 
       {!playoffLoading && playoff && (
         <section className="glass-card">
-
           <header
             style={{
               display: 'flex',
@@ -755,17 +527,9 @@ function Playoffs() {
               marginBottom: 25,
             }}
           >
-
             <div>
-              <p className="eyebrow">
-                Championship Stage
-              </p>
-
-              <h2>
-                {playoff.type === '8-team'
-                  ? '8-Team Playoffs'
-                  : 'Top 4 Playoffs'}
-              </h2>
+              <p className="eyebrow">Championship Stage</p>
+              <h2>{playoff.type === '8-team' ? '8-Team Playoffs' : 'Top 4 Playoffs'}</h2>
             </div>
 
             {isSuperAdmin && (
@@ -774,103 +538,66 @@ function Playoffs() {
                 onClick={resetPlayoffs}
                 disabled={playoffSaving}
               >
-                {playoffSaving
-                  ? 'Saving…'
-                  : 'Reset Playoffs'}
+                Reset Playoffs
               </button>
             )}
-
           </header>
 
           <div className="playoff-bracket">
-
             {playoff.type === '8-team' && (
               <section className="playoff-round">
-
                 <header className="playoff-round-header">
                   <span>Round 1</span>
                   <h2>Quarter Finals</h2>
                 </header>
-
-                {playoff.quarterFinals.map(
-                  (match, index) => (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      round="quarterFinals"
-                      index={index}
-                      label={`QF ${index + 1}`}
-                    />
-                  )
-                )}
-
+                {playoff.quarterFinals.map((match, index) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    round="quarterFinals"
+                    index={index}
+                    label={`QF ${index + 1}`}
+                  />
+                ))}
               </section>
             )}
 
             <section className="playoff-round">
-
               <header className="playoff-round-header">
-                <span>
-                  {playoff.type === '8-team'
-                    ? 'Round 2'
-                    : 'Round 1'}
-                </span>
-
+                <span>{playoff.type === '8-team' ? 'Round 2' : 'Round 1'}</span>
                 <h2>Semi Finals</h2>
               </header>
-
-              {playoff.semiFinals.map(
-                (match, index) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    round="semiFinals"
-                    index={index}
-                    label={`SF ${index + 1}`}
-                  />
-                )
-              )}
-
+              {playoff.semiFinals.map((match, index) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  round="semiFinals"
+                  index={index}
+                  label={`SF ${index + 1}`}
+                />
+              ))}
             </section>
 
             <section className="playoff-round final-round">
-
               <header className="playoff-round-header">
                 <span>Grand Final</span>
                 <h2>Final</h2>
               </header>
-
               <MatchCard
                 match={playoff.final}
                 round="final"
                 index={0}
                 label="FINAL"
               />
-
-              <div
-                className="champion-box"
-                style={{ marginTop: 20 }}
-              >
-
+              <div className="champion-box" style={{ marginTop: 20 }}>
                 <FaTrophy />
-
-                <span>
-                  SBT MAJOR CHAMPION
-                </span>
-
-                <strong>
-                  {champion?.name || 'TBD'}
-                </strong>
-
+                <span>SBT MAJOR CHAMPION</span>
+                <strong>{champion?.name || 'TBD'}</strong>
               </div>
-
             </section>
-
           </div>
-
         </section>
       )}
-
     </section>
   )
 }
