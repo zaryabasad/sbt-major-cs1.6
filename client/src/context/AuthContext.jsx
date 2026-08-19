@@ -86,6 +86,27 @@ async function loadUserProfile(currentUser) {
   }
 }
 
+async function linkPlayerAccount(currentUser) {
+  if (!currentUser?.id || getIsSuperAdmin(currentUser)) {
+    return { linked: false, error: 'Invalid player account.' }
+  }
+
+  const { data, error } = await supabase.rpc(
+    'link_player_account_by_email',
+    {
+      p_email: getEmail(currentUser),
+      p_user_id: currentUser.id,
+    }
+  )
+
+  if (error) {
+    console.error('PLAYER ACCOUNT LINK ERROR:', error)
+    return { linked: false, error: error.message }
+  }
+
+  return data || { linked: false, error: 'Player registration is not approved yet.' }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -114,8 +135,13 @@ export function AuthProvider({ children }) {
       setUser(currentUser)
 
       if (currentUser) {
+        const linked = await linkPlayerAccount(currentUser)
         const nextProfile = await loadUserProfile(currentUser)
         if (mounted) setProfile(nextProfile)
+        if (!nextProfile && linked.linked) {
+          const refreshedProfile = await loadUserProfile(currentUser)
+          if (mounted) setProfile(refreshedProfile)
+        }
       } else {
         setProfile(null)
       }
@@ -137,6 +163,7 @@ export function AuthProvider({ children }) {
         return
       }
 
+      await linkPlayerAccount(currentUser)
       const nextProfile = await loadUserProfile(currentUser)
       setProfile(nextProfile)
       setLoading(false)
@@ -158,15 +185,16 @@ export function AuthProvider({ children }) {
     if (error) return { success: false, error: error.message }
 
     const currentUser = data.user
+    await linkPlayerAccount(currentUser)
     const nextProfile = await loadUserProfile(currentUser)
 
-    if (!nextProfile || !['super_admin', 'team_admin'].includes(nextProfile.role)) {
+    if (!nextProfile || !['super_admin', 'team_admin', 'player'].includes(nextProfile.role)) {
       await supabase.auth.signOut()
       setUser(null)
       setProfile(null)
       return {
         success: false,
-        error: 'This account is not authorized for tournament admin access.',
+        error: 'This account is not an approved player or tournament admin.',
       }
     }
 
@@ -176,37 +204,13 @@ export function AuthProvider({ children }) {
   }
 
   const playerLogin = async (email, password) => {
-    const normalizedEmail = normalizeEmail(email)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    })
-
-    if (error) return { success: false, error: error.message }
-
-    const currentUser = data.user
-
-    try {
-      await supabase.rpc('link_player_account')
-    } catch (linkError) {
-      console.error('PLAYER ACCOUNT LINK ERROR:', linkError)
+    const result = await login(email, password)
+    if (!result.success) return result
+    if (result.profile?.role !== 'player') {
+      await logout()
+      return { success: false, error: 'This account is not an approved SBT MAJOR player account.' }
     }
-
-    const nextProfile = await loadUserProfile(currentUser)
-
-    if (!nextProfile || nextProfile.role !== 'player') {
-      await supabase.auth.signOut()
-      setUser(null)
-      setProfile(null)
-      return {
-        success: false,
-        error: 'This account is not an approved SBT MAJOR player account.',
-      }
-    }
-
-    setUser(currentUser)
-    setProfile(nextProfile)
-    return { success: true, user: currentUser, profile: nextProfile }
+    return result
   }
 
   const playerSignup = async (email, password) => {
@@ -220,13 +224,21 @@ export function AuthProvider({ children }) {
     })
 
     if (error) return { success: false, error: error.message }
+    if (!data.user) return { success: false, error: 'Could not create the player account.' }
 
-    if (data.session?.user) {
-      try {
-        await supabase.rpc('link_player_account')
-      } catch (linkError) {
-        console.error('PLAYER ACCOUNT LINK ERROR:', linkError)
+    if (data.session) {
+      const linked = await linkPlayerAccount(data.user)
+      if (!linked.linked) {
+        await supabase.auth.signOut()
+        return {
+          success: false,
+          error: linked.error || 'This player registration is not approved yet.',
+        }
       }
+
+      const nextProfile = await loadUserProfile(data.user)
+      setUser(data.user)
+      setProfile(nextProfile)
     }
 
     return {
