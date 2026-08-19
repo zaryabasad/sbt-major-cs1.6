@@ -53,15 +53,11 @@ function Admin() {
   )
 
   const assignedTeam = teams.find((team) => team.id === teamId)
-  const assignedPlayers = isTeamAdmin
-    ? players.filter((p) => p.status === 'Sold' && p.teamId === teamId)
-    : []
+  const assignedPlayers = isTeamAdmin ? players.filter((p) => p.status === 'Sold' && p.teamId === teamId) : []
   const assignedSpent = assignedPlayers.reduce((sum, p) => sum + Number(p.soldPrice ?? p.basePrice ?? 0), 0)
   const assignedBudget = assignedTeam ? Number(assignedTeam.startingBudget ?? assignedTeam.budget ?? 100000) : 0
   const assignedRemaining = Math.max(0, assignedBudget - assignedSpent)
-  const history = isTeamAdmin
-    ? (auction?.history || []).filter((entry) => entry.teamId === teamId).slice(0, 10)
-    : []
+  const history = isTeamAdmin ? (auction?.history || []).filter((entry) => entry.teamId === teamId).slice(0, 10) : []
 
   const loadRegistrations = async () => {
     if (!isAdmin) return
@@ -75,11 +71,7 @@ function Admin() {
   const loadTeamAdmins = async () => {
     if (!isSuperAdmin) return setLoadingAdmins(false)
     setLoadingAdmins(true)
-    const { data, error } = await supabase
-      .from('admin_users')
-      .select('user_id, email, role, team_id, created_at, teams(id,name)')
-      .eq('role', 'team_admin')
-      .order('created_at', { ascending: true })
+    const { data, error } = await supabase.from('admin_users').select('user_id, email, role, team_id, created_at, teams(id,name)').eq('role', 'team_admin').order('created_at', { ascending: true })
     if (error) toast.error(error.message)
     setTeamAdmins(data || [])
     setLoadingAdmins(false)
@@ -101,15 +93,14 @@ function Admin() {
       })
       if (!player?.id) throw new Error('Player was not created correctly.')
 
-      const { error } = await supabase
-        .from('player_registrations')
-        .update({
-          status: 'Approved',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: user?.id || null,
-          admin_note: 'Approved and added to official Players list',
-        })
-        .eq('id', registration.id)
+      const { error } = await supabase.from('player_registrations').update({
+        status: 'Approved',
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user?.id || null,
+        player_id: player.id,
+        user_id: null,
+        admin_note: 'Approved and added to official Players list',
+      }).eq('id', registration.id)
       if (error) throw error
 
       toast.success(`${registration.nickname || 'Player'} approved`)
@@ -126,10 +117,7 @@ function Admin() {
     if (!isSuperAdmin || !registration?.id) return
     setActionId(registration.id)
     try {
-      const { error } = await supabase
-        .from('player_registrations')
-        .update({ status: 'Rejected', reviewed_at: new Date().toISOString(), reviewed_by: user?.id || null, admin_note: 'Rejected by tournament admin' })
-        .eq('id', registration.id)
+      const { error } = await supabase.from('player_registrations').update({ status: 'Rejected', reviewed_at: new Date().toISOString(), reviewed_by: user?.id || null, admin_note: 'Rejected by tournament admin' }).eq('id', registration.id)
       if (error) throw error
       toast.success(`${registration.nickname || 'Player'} rejected`)
       await loadRegistrations()
