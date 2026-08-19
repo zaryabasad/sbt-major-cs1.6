@@ -1,8 +1,14 @@
--- Player notification + login foundation
+-- Player account + notification setup
 -- Run once in Supabase SQL Editor.
 
 alter table public.players
   add column if not exists user_id uuid references auth.users(id) on delete set null;
+
+alter table public.player_registrations
+  add column if not exists player_id uuid references public.players(id) on delete set null;
+
+create index if not exists player_registrations_player_id_idx
+  on public.player_registrations(player_id);
 
 create table if not exists public.player_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -34,62 +40,74 @@ to authenticated
 using (user_id = auth.uid())
 with check (user_id = auth.uid());
 
-create or replace function public.notify_player_registration_change()
-returns trigger
+create or replace function public.link_player_account()
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  target_user_id uuid;
-  approved_player_id uuid;
+  current_user_id uuid := auth.uid();
+  current_email text := lower(trim(coalesce(auth.jwt() ->> 'email', '')));
+  registration_row public.player_registrations%rowtype;
 begin
-  target_user_id := coalesce(new.user_id, old.user_id);
-
-  if target_user_id is not null and coalesce(old.status, '') <> new.status then
-    if lower(new.status) = 'approved' then
-      select id
-        into approved_player_id
-      from public.players
-      where user_id is null
-        and lower(coalesce(nickname, '')) = lower(coalesce(new.nickname, ''))
-      order by created_at desc
-      limit 1;
-
-      if approved_player_id is not null then
-        update public.players
-        set user_id = target_user_id
-        where id = approved_player_id;
-      end if;
-
-      insert into public.player_notifications(user_id, title, message, type)
-      values (
-        target_user_id,
-        'Registration approved',
-        'Your player registration has been approved. Welcome to SBT MAJOR.',
-        'success'
-      );
-    elsif lower(new.status) = 'rejected' then
-      insert into public.player_notifications(user_id, title, message, type)
-      values (
-        target_user_id,
-        'Registration update',
-        coalesce(nullif(new.admin_note, ''), 'Your player registration was not approved.'),
-        'warning'
-      );
-    end if;
+  if current_user_id is null or current_email = '' then
+    raise exception 'Authentication session is required.';
   end if;
 
-  return new;
+  select * into registration_row
+  from public.player_registrations
+  where lower(trim(email)) = current_email
+    and lower(coalesce(status, '')) = 'approved'
+  order by created_at desc
+  limit 1;
+
+  if registration_row.id is null then
+    raise exception 'No approved player registration was found for this email.';
+  end if;
+
+  if registration_row.player_id is null then
+    raise exception 'Your approved registration is missing its player profile. Please contact the admin.';
+  end if;
+
+  update public.players
+  set user_id = current_user_id
+  where id = registration_row.player_id
+    and (user_id is null or user_id = current_user_id);
+
+  if not found then
+    raise exception 'This player profile is already linked to another account.';
+  end if;
+
+  update public.player_registrations
+  set user_id = current_user_id
+  where id = registration_row.id
+    and (user_id is null or user_id = current_user_id);
+
+  insert into public.player_notifications(user_id, title, message, type)
+  select
+    current_user_id,
+    'Registration approved',
+    'Your player registration has been approved. Welcome to SBT MAJOR.',
+    'success'
+  where not exists (
+    select 1 from public.player_notifications
+    where user_id = current_user_id
+      and type = 'success'
+      and title = 'Registration approved'
+  );
+
+  return jsonb_build_object(
+    'player_id', registration_row.player_id,
+    'registration_id', registration_row.id,
+    'nickname', registration_row.nickname,
+    'real_name', registration_row.real_name,
+    'email', current_email
+  );
 end;
 $$;
 
-drop trigger if exists player_registration_notification_trigger
-  on public.player_registrations;
-create trigger player_registration_notification_trigger
-after update of status, user_id on public.player_registrations
-for each row
-execute function public.notify_player_registration_change();
+grant execute on function public.link_player_account() to authenticated;
 
 create or replace function public.notify_player_sale()
 returns trigger
@@ -103,11 +121,7 @@ begin
   if new.user_id is not null
      and lower(coalesce(old.status, 'unsold')) <> 'sold'
      and lower(coalesce(new.status, 'unsold')) = 'sold' then
-
-    select name into team_name
-    from public.teams
-    where id = new.team_id;
-
+    select name into team_name from public.teams where id = new.team_id;
     insert into public.player_notifications(user_id, title, message, type)
     values (
       new.user_id,
@@ -117,17 +131,14 @@ begin
       'auction'
     );
   end if;
-
   return new;
 end;
 $$;
 
-drop trigger if exists player_sale_notification_trigger
-  on public.players;
+drop trigger if exists player_sale_notification_trigger on public.players;
 create trigger player_sale_notification_trigger
 after update of status, team_id, sold_price on public.players
-for each row
-execute function public.notify_player_sale();
+for each row execute function public.notify_player_sale();
 
 do $$
 begin
