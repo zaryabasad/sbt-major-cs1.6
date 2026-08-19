@@ -40,12 +40,31 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  target_user_id uuid;
+  approved_player_id uuid;
 begin
-  if new.user_id is not null and coalesce(old.status, '') <> new.status then
+  target_user_id := coalesce(new.user_id, old.user_id);
+
+  if target_user_id is not null and coalesce(old.status, '') <> new.status then
     if lower(new.status) = 'approved' then
+      select id
+        into approved_player_id
+      from public.players
+      where user_id is null
+        and lower(coalesce(nickname, '')) = lower(coalesce(new.nickname, ''))
+      order by created_at desc
+      limit 1;
+
+      if approved_player_id is not null then
+        update public.players
+        set user_id = target_user_id
+        where id = approved_player_id;
+      end if;
+
       insert into public.player_notifications(user_id, title, message, type)
       values (
-        new.user_id,
+        target_user_id,
         'Registration approved',
         'Your player registration has been approved. Welcome to SBT MAJOR.',
         'success'
@@ -53,7 +72,7 @@ begin
     elsif lower(new.status) = 'rejected' then
       insert into public.player_notifications(user_id, title, message, type)
       values (
-        new.user_id,
+        target_user_id,
         'Registration update',
         coalesce(nullif(new.admin_note, ''), 'Your player registration was not approved.'),
         'warning'
@@ -68,7 +87,7 @@ $$;
 drop trigger if exists player_registration_notification_trigger
   on public.player_registrations;
 create trigger player_registration_notification_trigger
-after update of status on public.player_registrations
+after update of status, user_id on public.player_registrations
 for each row
 execute function public.notify_player_registration_change();
 
@@ -110,12 +129,10 @@ after update of status, team_id, sold_price on public.players
 for each row
 execute function public.notify_player_sale();
 
--- Enable realtime updates for the bell when available.
 do $$
 begin
   alter publication supabase_realtime add table public.player_notifications;
 exception
-  when duplicate_object then
-    null;
+  when duplicate_object then null;
 end;
 $$;
