@@ -17,9 +17,7 @@ const SUPER_ADMIN_EMAIL = String(
   .toLowerCase()
 
 function normalizeEmail(email) {
-  return String(email || '')
-    .trim()
-    .toLowerCase()
+  return String(email || '').trim().toLowerCase()
 }
 
 function getEmail(currentUser) {
@@ -28,18 +26,11 @@ function getEmail(currentUser) {
 
 function getIsSuperAdmin(currentUser) {
   const email = getEmail(currentUser)
-
-  return Boolean(
-    email &&
-      SUPER_ADMIN_EMAIL &&
-      email === SUPER_ADMIN_EMAIL
-  )
+  return Boolean(email && SUPER_ADMIN_EMAIL && email === SUPER_ADMIN_EMAIL)
 }
 
 async function loadUserProfile(currentUser) {
-  if (!currentUser?.id) {
-    return null
-  }
+  if (!currentUser?.id) return null
 
   if (getIsSuperAdmin(currentUser)) {
     return {
@@ -57,9 +48,7 @@ async function loadUserProfile(currentUser) {
     .eq('user_id', currentUser.id)
     .maybeSingle()
 
-  if (adminError) {
-    console.error('ADMIN PROFILE LOAD ERROR:', adminError)
-  }
+  if (adminError) console.error('ADMIN PROFILE LOAD ERROR:', adminError)
 
   if (adminData) {
     return {
@@ -83,9 +72,7 @@ async function loadUserProfile(currentUser) {
     return null
   }
 
-  if (!playerData) {
-    return null
-  }
+  if (!playerData) return null
 
   return {
     userId: playerData.user_id,
@@ -120,11 +107,7 @@ export function AuthProvider({ children }) {
 
     const loadSession = async () => {
       const { data, error } = await supabase.auth.getSession()
-
-      if (error) {
-        console.error('Auth session error:', error)
-      }
-
+      if (error) console.error('Auth session error:', error)
       if (!mounted) return
 
       const currentUser = data.session?.user ?? null
@@ -167,15 +150,12 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const normalizedEmail = normalizeEmail(email)
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password,
     })
 
-    if (error) {
-      return { success: false, error: error.message }
-    }
+    if (error) return { success: false, error: error.message }
 
     const currentUser = data.user
     const nextProfile = await loadUserProfile(currentUser)
@@ -184,7 +164,6 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut()
       setUser(null)
       setProfile(null)
-
       return {
         success: false,
         error: 'This account is not authorized for tournament admin access.',
@@ -193,11 +172,67 @@ export function AuthProvider({ children }) {
 
     setUser(currentUser)
     setProfile(nextProfile)
+    return { success: true, user: currentUser, profile: nextProfile }
+  }
+
+  const playerLogin = async (email, password) => {
+    const normalizedEmail = normalizeEmail(email)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    })
+
+    if (error) return { success: false, error: error.message }
+
+    const currentUser = data.user
+
+    try {
+      await supabase.rpc('link_player_account')
+    } catch (linkError) {
+      console.error('PLAYER ACCOUNT LINK ERROR:', linkError)
+    }
+
+    const nextProfile = await loadUserProfile(currentUser)
+
+    if (!nextProfile || nextProfile.role !== 'player') {
+      await supabase.auth.signOut()
+      setUser(null)
+      setProfile(null)
+      return {
+        success: false,
+        error: 'This account is not an approved SBT MAJOR player account.',
+      }
+    }
+
+    setUser(currentUser)
+    setProfile(nextProfile)
+    return { success: true, user: currentUser, profile: nextProfile }
+  }
+
+  const playerSignup = async (email, password) => {
+    const normalizedEmail = normalizeEmail(email)
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        data: { account_type: 'player' },
+      },
+    })
+
+    if (error) return { success: false, error: error.message }
+
+    if (data.session?.user) {
+      try {
+        await supabase.rpc('link_player_account')
+      } catch (linkError) {
+        console.error('PLAYER ACCOUNT LINK ERROR:', linkError)
+      }
+    }
 
     return {
       success: true,
-      user: currentUser,
-      profile: nextProfile,
+      sessionCreated: Boolean(data.session),
+      user: data.user,
     }
   }
 
@@ -228,11 +263,13 @@ export function AuthProvider({ children }) {
       role,
       teamId,
       login,
+      playerLogin,
+      playerSignup,
       logout,
       refreshAdminProfile: () => refreshProfile(user),
       refreshProfile: () => refreshProfile(user),
     }),
-    [user, loading, profile, isAdmin, isSuperAdmin, isTeamAdmin, isPlayer, role, teamId]
+    [user, loading, profile, isAdmin, isSuperAdmin, isTeamAdmin, isPlayer, role, teamId],
   )
 
   return (
