@@ -156,6 +156,19 @@ function AuctionOutOverlay() {
           backdrop-filter: blur(10px);
         }
 
+        .auction-out-blocker {
+          position: fixed;
+          left: 50%;
+          bottom: 74px;
+          width: min(410px, calc(100vw - 28px));
+          height: 155px;
+          transform: translateX(-50%);
+          z-index: 1190;
+          border-radius: 10px;
+          background: transparent;
+          pointer-events: auto;
+        }
+
         .auction-out-status {
           min-width: 118px;
           text-align: left;
@@ -229,11 +242,25 @@ function AuctionOutOverlay() {
             justify-content: space-between;
           }
 
+          .auction-out-blocker {
+            bottom: 82px;
+            width: calc(100vw - 24px);
+            height: 205px;
+          }
+
           .auction-out-button {
             min-width: 112px;
           }
         }
       `}</style>
+
+      {isOwnTeamOut && isTeamAdmin && (
+        <div
+          className="auction-out-blocker"
+          aria-hidden="true"
+          title="Your team is out for this player"
+        />
+      )}
 
       <div className="auction-out-overlay">
         <div className="auction-out-status">
