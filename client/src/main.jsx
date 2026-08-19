@@ -12,6 +12,7 @@ import { PlayersProvider } from './context/PlayersContext.jsx'
 import { AuctionProvider } from './context/AuctionContext.jsx'
 import { FixturesProvider } from './context/FixturesContext.jsx'
 import { ChatProvider } from './context/ChatContext.jsx'
+import AuctionOutOverlay from './components/AuctionOutOverlay.jsx'
 import { Toaster } from 'react-hot-toast'
 
 createRoot(document.getElementById('root')).render(
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')).render(
             <FixturesProvider>
               <ChatProvider>
                 <App />
+                <AuctionOutOverlay />
                 <Toaster
                   position="top-right"
                   toastOptions={{
