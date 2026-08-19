@@ -14,8 +14,8 @@ const navigation = [
 ]
 
 function Header() {
-  const { isTeamAdmin, isSuperAdmin } = useAuth()
-  const canUseVoice = isTeamAdmin || isSuperAdmin
+  const { user, isTeamAdmin, isSuperAdmin } = useAuth()
+  const canUseVoice = Boolean(user && (isTeamAdmin || isSuperAdmin))
   const [menuOpen, setMenuOpen] = useState(false)
 
   const closeMenu = () => setMenuOpen(false)
