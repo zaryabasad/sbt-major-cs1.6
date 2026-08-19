@@ -6,9 +6,6 @@ import Chat from '../pages/Chat'
 import Fixtures from '../pages/Fixtures'
 import Home from '../pages/Home'
 import Login from '../pages/Login'
-import Notifications from '../pages/Notifications'
-import PlayerAccount from '../pages/PlayerAccount'
-import PlayerLogin from '../pages/PlayerLogin'
 import Playoffs from '../pages/Playoffs'
 import Stats from '../pages/Stats'
 import Teams from '../pages/Teams'
@@ -31,9 +28,7 @@ function AppRoutes() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/voice" element={<VoiceChat />} />
-          <Route path="/notifications" element={<Notifications />} />
           <Route path="/player-register" element={<PlayerRegister />} />
-          <Route path="/player-account" element={<PlayerAccount />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/admin" element={<Admin />} />
@@ -42,7 +37,6 @@ function AppRoutes() {
         </Route>
 
         <Route path="/login" element={<Login />} />
-        <Route path="/player-login" element={<PlayerLogin />} />
       </Routes>
     </BrowserRouter>
   )
