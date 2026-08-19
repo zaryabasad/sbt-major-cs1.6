@@ -46,5 +46,45 @@ with check (
   )
 );
 
+-- A team that has opted out can no longer submit another bid for that player.
+create or replace function public.prevent_bid_after_team_out()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if lower(coalesce(new.type, 'bid')) = 'bid'
+     and exists (
+       select 1
+       from public.auction_team_out o
+       where o.player_id = new.player_id
+         and o.team_id = new.team_id
+     ) then
+    raise exception 'This team is OUT for the current player.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_bid_after_team_out_trigger
+  on public.auction_history;
+
+create trigger prevent_bid_after_team_out_trigger
+before insert on public.auction_history
+for each row
+execute function public.prevent_bid_after_team_out();
+
+-- Let the UI see OUT events in real time.
+do $$
+begin
+  alter publication supabase_realtime
+    add table public.auction_team_out;
+exception
+  when duplicate_object then null;
+end;
+$$;
+
 -- No update/delete policy on purpose: once a team is OUT for a player,
 -- it stays OUT until a different player is put on the auction block.
