@@ -10,11 +10,6 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-// Super admin email. Team admins are loaded from the
-// public.admin_users table after authentication.
-//
-// .env:
-// VITE_ADMIN_EMAIL=your-super-admin-email@example.com
 const SUPER_ADMIN_EMAIL = String(
   import.meta.env.VITE_ADMIN_EMAIL || ''
 )
@@ -41,145 +36,128 @@ function getIsSuperAdmin(currentUser) {
   )
 }
 
-async function loadAdminProfile(currentUser) {
+async function loadUserProfile(currentUser) {
   if (!currentUser?.id) {
     return null
   }
 
-  // Super admin does not require a database row.
   if (getIsSuperAdmin(currentUser)) {
     return {
       userId: currentUser.id,
       email: getEmail(currentUser),
       role: 'super_admin',
       teamId: null,
+      playerRegistrationId: null,
     }
   }
 
-  const { data, error } = await supabase
+  const { data: adminData, error: adminError } = await supabase
     .from('admin_users')
     .select('user_id, email, role, team_id')
     .eq('user_id', currentUser.id)
     .maybeSingle()
 
-  if (error) {
-    console.error(
-      'ADMIN PROFILE LOAD ERROR:',
-      error
-    )
+  if (adminError) {
+    console.error('ADMIN PROFILE LOAD ERROR:', adminError)
+  }
+
+  if (adminData) {
+    return {
+      userId: adminData.user_id,
+      email: normalizeEmail(adminData.email) || getEmail(currentUser),
+      role: adminData.role === 'super_admin' ? 'super_admin' : 'team_admin',
+      teamId: adminData.team_id || null,
+      playerRegistrationId: null,
+    }
+  }
+
+  const { data: playerData, error: playerError } = await supabase
+    .from('player_registrations')
+    .select('id, user_id, email, real_name, nickname, status')
+    .eq('user_id', currentUser.id)
+    .eq('status', 'Approved')
+    .maybeSingle()
+
+  if (playerError) {
+    console.error('PLAYER PROFILE LOAD ERROR:', playerError)
     return null
   }
 
-  if (!data) {
+  if (!playerData) {
     return null
   }
-
-  const role =
-    data.role === 'super_admin'
-      ? 'super_admin'
-      : 'team_admin'
 
   return {
-    userId: data.user_id,
-    email:
-      normalizeEmail(data.email) ||
-      getEmail(currentUser),
-    role,
-    teamId: data.team_id || null,
+    userId: playerData.user_id,
+    email: normalizeEmail(playerData.email) || getEmail(currentUser),
+    role: 'player',
+    teamId: null,
+    playerRegistrationId: playerData.id,
+    playerName: playerData.nickname || playerData.real_name || 'Player',
+    playerRealName: playerData.real_name || '',
+    playerNickname: playerData.nickname || '',
   }
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [adminProfile, setAdminProfile] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const refreshAdminProfile = async (
-    currentUser
-  ) => {
+  const refreshProfile = async (currentUser) => {
     if (!currentUser) {
-      setAdminProfile(null)
+      setProfile(null)
       return null
     }
 
-    const profile =
-      await loadAdminProfile(currentUser)
-
-    setAdminProfile(profile)
-
-    return profile
+    const nextProfile = await loadUserProfile(currentUser)
+    setProfile(nextProfile)
+    return nextProfile
   }
 
   useEffect(() => {
     let mounted = true
 
     const loadSession = async () => {
-      const {
-        data,
-        error,
-      } = await supabase.auth.getSession()
+      const { data, error } = await supabase.auth.getSession()
 
       if (error) {
-        console.error(
-          'Auth session error:',
-          error
-        )
+        console.error('Auth session error:', error)
       }
 
       if (!mounted) return
 
-      const currentUser =
-        data.session?.user ?? null
-
+      const currentUser = data.session?.user ?? null
       setUser(currentUser)
 
       if (currentUser) {
-        const profile =
-          await loadAdminProfile(
-            currentUser
-          )
-
-        if (mounted) {
-          setAdminProfile(profile)
-        }
+        const nextProfile = await loadUserProfile(currentUser)
+        if (mounted) setProfile(nextProfile)
       } else {
-        setAdminProfile(null)
+        setProfile(null)
       }
 
-      if (mounted) {
-        setLoading(false)
-      }
+      if (mounted) setLoading(false)
     }
 
-    loadSession()
+    void loadSession()
 
     const {
-      data: {
-        subscription,
-      },
-    } =
-      supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          const currentUser =
-            session?.user ?? null
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
 
-          setUser(currentUser)
+      if (!currentUser) {
+        setProfile(null)
+        setLoading(false)
+        return
+      }
 
-          if (!currentUser) {
-            setAdminProfile(null)
-            setLoading(false)
-            return
-          }
-
-          const profile =
-            await loadAdminProfile(
-              currentUser
-            )
-
-          setAdminProfile(profile)
-          setLoading(false)
-        }
-      )
+      const nextProfile = await loadUserProfile(currentUser)
+      setProfile(nextProfile)
+      setLoading(false)
+    })
 
     return () => {
       mounted = false
@@ -187,126 +165,83 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const login = async (
-    email,
-    password
-  ) => {
-    const normalizedEmail =
-      normalizeEmail(email)
+  const login = async (email, password) => {
+    const normalizedEmail = normalizeEmail(email)
 
-    const {
-      data,
-      error,
-    } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    })
 
     if (error) {
-      return {
-        success: false,
-        error: error.message,
-      }
+      return { success: false, error: error.message }
     }
 
     const currentUser = data.user
+    const nextProfile = await loadUserProfile(currentUser)
 
-    const profile =
-      await loadAdminProfile(
-        currentUser
-      )
-
-    // A Supabase account alone is not enough.
-    // It must be the super admin or exist in admin_users.
-    if (!profile) {
+    if (!nextProfile || !['super_admin', 'team_admin'].includes(nextProfile.role)) {
       await supabase.auth.signOut()
       setUser(null)
-      setAdminProfile(null)
+      setProfile(null)
 
       return {
         success: false,
-        error:
-          'This account is not authorized for tournament admin access.',
+        error: 'This account is not authorized for tournament admin access.',
       }
     }
 
     setUser(currentUser)
-    setAdminProfile(profile)
+    setProfile(nextProfile)
 
     return {
       success: true,
       user: currentUser,
-      profile,
+      profile: nextProfile,
     }
   }
 
   const logout = async () => {
     await supabase.auth.signOut()
     setUser(null)
-    setAdminProfile(null)
+    setProfile(null)
   }
 
-  const isAdmin = Boolean(
-    adminProfile
-  )
-
-  const isSuperAdmin =
-    adminProfile?.role ===
-    'super_admin'
-
-  const isTeamAdmin =
-    adminProfile?.role ===
-    'team_admin'
-
-  const teamId =
-    adminProfile?.teamId || null
-
-  const role =
-    adminProfile?.role || null
+  const isSuperAdmin = profile?.role === 'super_admin'
+  const isTeamAdmin = profile?.role === 'team_admin'
+  const isPlayer = profile?.role === 'player'
+  const isAdmin = isSuperAdmin || isTeamAdmin
+  const teamId = profile?.teamId || null
+  const role = profile?.role || null
 
   const value = useMemo(
     () => ({
       user,
       loading,
-      adminProfile,
-
+      adminProfile: isAdmin ? profile : null,
+      playerProfile: isPlayer ? profile : null,
+      profile,
       isAdmin,
       isSuperAdmin,
       isTeamAdmin,
-
+      isPlayer,
       role,
       teamId,
-
       login,
       logout,
-
-      refreshAdminProfile: () =>
-        refreshAdminProfile(user),
+      refreshAdminProfile: () => refreshProfile(user),
+      refreshProfile: () => refreshProfile(user),
     }),
-    [
-      user,
-      loading,
-      adminProfile,
-      isAdmin,
-      isSuperAdmin,
-      isTeamAdmin,
-      role,
-      teamId,
-    ]
+    [user, loading, profile, isAdmin, isSuperAdmin, isTeamAdmin, isPlayer, role, teamId]
   )
 
   return (
-    <AuthContext.Provider
-      value={value}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  return useContext(
-    AuthContext
-  )
+  return useContext(AuthContext)
 }
