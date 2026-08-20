@@ -1,7 +1,7 @@
 import { FaShieldAlt, FaTimes, FaUsers } from 'react-icons/fa'
 import { formatCurrency } from '../utils/formatCurrency'
 
-function TeamDetailsModal({ team, players = [], onClose }) {
+function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }) {
   const roster = players.filter(
     (player) =>
       player.status === 'Sold' &&
@@ -52,9 +52,7 @@ function TeamDetailsModal({ team, players = [], onClose }) {
           <div>
             <p className="eyebrow">TEAM DETAILS</p>
 
-            <h2>
-              {team.name}
-            </h2>
+            <h2>{team.name}</h2>
 
             <p>
               Owner: <strong>{team.owner}</strong>
@@ -75,13 +73,13 @@ function TeamDetailsModal({ team, players = [], onClose }) {
           <div>
             <FaShieldAlt />
 
-            <strong>
-              Remaining Budget
-            </strong>
+            <strong>Remaining Budget</strong>
           </div>
 
           <h3>
-            {formatCurrency(remainingBudget)}
+            {canViewBudget
+              ? formatCurrency(remainingBudget)
+              : 'PRIVATE'}
           </h3>
         </div>
 
@@ -112,7 +110,9 @@ function TeamDetailsModal({ team, players = [], onClose }) {
                   </span>
 
                   <strong>
-                    {formatCurrency(soldPrice)}
+                    {canViewBudget
+                      ? formatCurrency(soldPrice)
+                      : 'PRIVATE'}
                   </strong>
                 </div>
               )
