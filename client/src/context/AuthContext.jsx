@@ -24,23 +24,13 @@ function getEmail(currentUser) {
   return normalizeEmail(currentUser?.email)
 }
 
-function getIsSuperAdmin(currentUser) {
+function getIsSuperAdminByEmail(currentUser) {
   const email = getEmail(currentUser)
   return Boolean(email && SUPER_ADMIN_EMAIL && email === SUPER_ADMIN_EMAIL)
 }
 
 async function loadUserProfile(currentUser) {
   if (!currentUser?.id) return null
-
-  if (getIsSuperAdmin(currentUser)) {
-    return {
-      userId: currentUser.id,
-      email: getEmail(currentUser),
-      role: 'super_admin',
-      teamId: null,
-      playerRegistrationId: null,
-    }
-  }
 
   const { data: adminData, error: adminError } = await supabase
     .from('admin_users')
@@ -56,6 +46,16 @@ async function loadUserProfile(currentUser) {
       email: normalizeEmail(adminData.email) || getEmail(currentUser),
       role: adminData.role === 'super_admin' ? 'super_admin' : 'team_admin',
       teamId: adminData.team_id || null,
+      playerRegistrationId: null,
+    }
+  }
+
+  if (getIsSuperAdminByEmail(currentUser)) {
+    return {
+      userId: currentUser.id,
+      email: getEmail(currentUser),
+      role: 'super_admin',
+      teamId: null,
       playerRegistrationId: null,
     }
   }
