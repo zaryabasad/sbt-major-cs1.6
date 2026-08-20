@@ -3,10 +3,10 @@ import MainLayout from '../layouts/MainLayout'
 import Admin from '../pages/Admin'
 import Auction from '../pages/Auction'
 import GroupChat from '../pages/GroupChat'
-import Fixtures from '../pages/Fixtures'
+import PoolFixtures from '../pages/PoolFixtures'
 import Home from '../pages/Home'
 import Login from '../pages/Login'
-import Playoffs from '../pages/Playoffs'
+import PoolPlayoffs from '../pages/PoolPlayoffs'
 import Stats from '../pages/Stats'
 import Teams from '../pages/Teams'
 import VoiceChat from '../pages/VoiceChatFixed'
@@ -23,8 +23,8 @@ function AppRoutes() {
           <Route path="/auction" element={<Auction />} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/players" element={<Players />} />
-          <Route path="/fixtures" element={<Fixtures />} />
-          <Route path="/playoffs" element={<Playoffs />} />
+          <Route path="/fixtures" element={<PoolFixtures />} />
+          <Route path="/playoffs" element={<PoolPlayoffs />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/chat" element={<GroupChat />} />
           <Route path="/voice" element={<VoiceChat />} />
