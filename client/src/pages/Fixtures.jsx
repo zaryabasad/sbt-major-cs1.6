@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FaEdit, FaPlus, FaRandom } from 'react-icons/fa'
+import { FaEdit, FaPlus, FaRandom, FaTrash } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 
@@ -70,6 +70,7 @@ function Fixtures() {
 
   const [selectedFixture, setSelectedFixture] = useState(null)
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   const [generator, setGenerator] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -80,7 +81,7 @@ function Fixtures() {
   const getTeam = (id) =>
     teams.find((team) => team.id === id)
 
-  const generateFixtures = (event) => {
+  const generateFixtures = async (event) => {
     if (!isSuperAdmin) {
       toast.error(
         'Only the Super Admin can generate fixtures'
@@ -108,15 +109,46 @@ function Fixtures() {
       generator.format
     )
 
-    replaceFixtures(newFixtures)
-    setIsGeneratorOpen(false)
+    try {
+      await replaceFixtures(newFixtures)
+      setIsGeneratorOpen(false)
 
-    toast.success(
-      `${newFixtures.length} Round Robin fixtures generated`
-    )
+      toast.success(
+        `${newFixtures.length} Round Robin fixtures generated`
+      )
+    } catch (error) {
+      toast.error(error?.message || 'Failed to generate fixtures')
+    }
   }
 
-  const saveFixture = (fixture) => {
+  const clearFixtures = async () => {
+    if (!isSuperAdmin || isClearing) return
+
+    if (fixtures.length === 0) {
+      toast.error('There are no fixtures to clear')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Clear all ${fixtures.length} fixtures? This will permanently remove the current schedule.`
+    )
+
+    if (!confirmed) return
+
+    setIsClearing(true)
+
+    try {
+      await replaceFixtures([])
+      setSelectedFixture(null)
+      toast.success('All fixtures cleared')
+    } catch (error) {
+      toast.error(error?.message || 'Failed to clear fixtures')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
+  const saveFixture = async (fixture) => {
     if (!isSuperAdmin) {
       toast.error(
         'Only the Super Admin can edit fixtures'
@@ -124,10 +156,14 @@ function Fixtures() {
       return
     }
 
-    updateFixture(fixture)
-    setSelectedFixture(null)
+    try {
+      await updateFixture(fixture)
+      setSelectedFixture(null)
 
-    toast.success('Fixture updated')
+      toast.success('Fixture updated')
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update fixture')
+    }
   }
 
   return (
@@ -144,6 +180,26 @@ function Fixtures() {
           letter-spacing: .08em;
           text-transform: uppercase;
           white-space: nowrap;
+        }
+
+        .fixtures-heading-actions {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .fixtures-clear-button {
+          color: #ff9aa5;
+          border-color: rgba(255,48,72,.22);
+          background: rgba(255,48,72,.05);
+        }
+
+        .fixtures-clear-button:hover {
+          color: #fff;
+          border-color: rgba(255,48,72,.42);
+          background: rgba(255,48,72,.10);
         }
       `}</style>
 
@@ -167,13 +223,28 @@ function Fixtures() {
         )}
 
         {isSuperAdmin && (
-          <button
-            className="button button-primary"
-            onClick={() => setIsGeneratorOpen(true)}
-          >
-            <FaRandom />
-            Generate Round Robin
-          </button>
+          <div className="fixtures-heading-actions">
+            {fixtures.length > 0 && (
+              <button
+                className="button button-secondary fixtures-clear-button"
+                type="button"
+                onClick={clearFixtures}
+                disabled={isClearing}
+              >
+                <FaTrash />
+                {isClearing ? 'Clearing…' : 'Clear Fixtures'}
+              </button>
+            )}
+
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={() => setIsGeneratorOpen(true)}
+            >
+              <FaRandom />
+              Generate Round Robin
+            </button>
+          </div>
         )}
       </header>
 
@@ -192,6 +263,7 @@ function Fixtures() {
           {isSuperAdmin && (
             <button
               className="button button-primary"
+              type="button"
               onClick={() => setIsGeneratorOpen(true)}
             >
               <FaRandom />
@@ -287,6 +359,7 @@ function Fixtures() {
                   {isSuperAdmin && (
                     <button
                       className="icon-button"
+                      type="button"
                       onClick={() =>
                         setSelectedFixture(fixture)
                       }
