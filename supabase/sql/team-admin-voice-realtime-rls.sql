@@ -1,5 +1,10 @@
--- Private Realtime authorization for the shared Team Admin voice room.
--- Run once in Supabase SQL Editor.
+-- SBT MAJOR
+-- PRIVATE REALTIME VOICE ROOM
+-- Team Admin + Super Admin only
+--
+-- IMPORTANT:
+-- Supabase manages realtime.messages. Do NOT ALTER/ENABLE RLS on it.
+-- RLS is already enabled; this file only creates authorization policies.
 
 CREATE OR REPLACE FUNCTION public.is_tournament_admin()
 RETURNS boolean
@@ -13,15 +18,6 @@ AS $$
     FROM public.admin_users a
     WHERE a.user_id = auth.uid()
       AND a.role IN ('team_admin', 'super_admin')
-  )
-  OR EXISTS (
-    SELECT 1
-    FROM auth.users u
-    WHERE u.id = auth.uid()
-      AND lower(u.email) = lower(coalesce(
-        current_setting('request.jwt.claims', true)::json ->> 'email',
-        u.email
-      ))
   );
 $$;
 
@@ -33,7 +29,7 @@ ON realtime.messages
 FOR SELECT
 TO authenticated
 USING (
-  (select realtime.topic()) = 'sbt-major-team-admin-voice'
+  (SELECT realtime.topic()) = 'sbt-major-team-admin-voice'
   AND realtime.messages.extension IN ('broadcast', 'presence')
   AND public.is_tournament_admin()
 );
@@ -43,9 +39,10 @@ ON realtime.messages
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  (select realtime.topic()) = 'sbt-major-team-admin-voice'
+  (SELECT realtime.topic()) = 'sbt-major-team-admin-voice'
   AND realtime.messages.extension IN ('broadcast', 'presence')
   AND public.is_tournament_admin()
 );
 
-NOTIFY pgrst, 'reload schema';
+-- No ALTER TABLE realtime.messages is needed.
+-- No NOTIFY is required for Realtime Authorization policies.
