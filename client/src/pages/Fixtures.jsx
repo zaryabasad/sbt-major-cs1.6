@@ -71,6 +71,7 @@ function Fixtures() {
   const [selectedFixture, setSelectedFixture] = useState(null)
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [isClearingPool, setIsClearingPool] = useState(false)
 
   const [generator, setGenerator] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -98,10 +99,6 @@ function Fixtures() {
       return
     }
 
-    // Full Round Robin:
-    // 3 teams = 3 fixtures
-    // 4 teams = 6 fixtures
-    // 5 teams = 10 fixtures
     const newFixtures = generateRoundRobin(
       teams,
       generator.date,
@@ -145,6 +142,41 @@ function Fixtures() {
       toast.error(error?.message || 'Failed to clear fixtures')
     } finally {
       setIsClearing(false)
+    }
+  }
+
+  const clearPoolFixtures = async () => {
+    if (!isSuperAdmin || isClearingPool) return
+
+    const poolFixtures = fixtures.filter(
+      (fixture) => String(fixture.pool || '').trim()
+    )
+
+    if (poolFixtures.length === 0) {
+      toast.error('There are no pool fixtures to clear')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Clear all ${poolFixtures.length} pool fixtures? Non-pool fixtures will remain.`
+    )
+
+    if (!confirmed) return
+
+    setIsClearingPool(true)
+
+    try {
+      const remainingFixtures = fixtures.filter(
+        (fixture) => !String(fixture.pool || '').trim()
+      )
+
+      await replaceFixtures(remainingFixtures)
+      setSelectedFixture(null)
+      toast.success('Pool fixtures cleared')
+    } catch (error) {
+      toast.error(error?.message || 'Failed to clear pool fixtures')
+    } finally {
+      setIsClearingPool(false)
     }
   }
 
@@ -201,6 +233,18 @@ function Fixtures() {
           border-color: rgba(255,48,72,.42);
           background: rgba(255,48,72,.10);
         }
+
+        .fixtures-pool-clear-button {
+          color: #f3c747;
+          border-color: rgba(243,199,71,.22);
+          background: rgba(243,199,71,.05);
+        }
+
+        .fixtures-pool-clear-button:hover {
+          color: #171207;
+          border-color: rgba(243,199,71,.45);
+          background: rgba(243,199,71,.16);
+        }
       `}</style>
 
       <header className="fixtures-heading">
@@ -224,6 +268,18 @@ function Fixtures() {
 
         {isSuperAdmin && (
           <div className="fixtures-heading-actions">
+            {fixtures.some((fixture) => String(fixture.pool || '').trim()) && (
+              <button
+                className="button button-secondary fixtures-pool-clear-button"
+                type="button"
+                onClick={clearPoolFixtures}
+                disabled={isClearingPool}
+              >
+                <FaTrash />
+                {isClearingPool ? 'Clearing Pool…' : 'Clear Pool'}
+              </button>
+            )}
+
             {fixtures.length > 0 && (
               <button
                 className="button button-secondary fixtures-clear-button"
@@ -250,11 +306,8 @@ function Fixtures() {
 
       {fixtures.length === 0 ? (
         <section className="empty-teams glass-card">
-
           <FaPlus />
-
           <h2>No fixtures generated</h2>
-
           <p>
             Create a Round Robin schedule from your existing
             team roster.
@@ -270,11 +323,9 @@ function Fixtures() {
               Generate Fixtures
             </button>
           )}
-
         </section>
       ) : (
         <div className="fixtures-list">
-
           {fixtures.map((fixture) => {
             const home = getTeam(fixture.homeTeamId)
             const away = getTeam(fixture.awayTeamId)
@@ -289,21 +340,16 @@ function Fixtures() {
                 }`}
                 key={fixture.id}
               >
-
                 <div className="fixture-top">
-
                   <span>
-                    Round {fixture.round}
+                    {fixture.pool ? `Pool ${fixture.pool}` : `Round ${fixture.round}`}
                   </span>
-
                   <span>
                     {fixture.date} · {fixture.time}
                   </span>
-
                 </div>
 
                 <div className="fixture-match">
-
                   <strong
                     className={
                       winner?.id === home?.id
@@ -327,11 +373,9 @@ function Fixtures() {
                   >
                     {away?.name || 'Deleted Team'}
                   </strong>
-
                 </div>
 
                 <div className="fixture-bottom">
-
                   <span className="fixture-format">
                     {fixture.format}
                   </span>
@@ -350,9 +394,7 @@ function Fixtures() {
                     }
                   >
                     {fixture.status === 'Completed'
-                      ? `Winner: ${
-                          winner?.name || 'Winner pending'
-                        }`
+                      ? `Winner: ${winner?.name || 'Winner pending'}`
                       : 'Upcoming'}
                   </span>
 
@@ -360,21 +402,16 @@ function Fixtures() {
                     <button
                       className="icon-button"
                       type="button"
-                      onClick={() =>
-                        setSelectedFixture(fixture)
-                      }
+                      onClick={() => setSelectedFixture(fixture)}
                       aria-label="Edit fixture"
                     >
                       <FaEdit />
                     </button>
                   )}
-
                 </div>
-
               </article>
             )
           })}
-
         </div>
       )}
 
@@ -384,31 +421,21 @@ function Fixtures() {
           role="presentation"
           onMouseDown={() => setIsGeneratorOpen(false)}
         >
-
           <section
             className="team-modal fixture-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="generator-title"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
+            onMouseDown={(event) => event.stopPropagation()}
           >
-
             <header>
               <div>
-                <p className="eyebrow">
-                  Tournament Schedule
-                </p>
-
-                <h2 id="generator-title">
-                  Generate Round Robin
-                </h2>
+                <p className="eyebrow">Tournament Schedule</p>
+                <h2 id="generator-title">Generate Round Robin</h2>
               </div>
             </header>
 
             <form onSubmit={generateFixtures}>
-
               <p>
                 {teams.length} teams will produce{' '}
                 {teams.length > 1
@@ -417,21 +444,15 @@ function Fixtures() {
                 fixtures.
               </p>
 
-              <p>
-                Matches are scheduled 75 minutes apart.
-              </p>
+              <p>Matches are scheduled 75 minutes apart.</p>
 
               <label>
                 First Match Date
-
                 <input
                   type="date"
                   value={generator.date}
                   onChange={(event) =>
-                    setGenerator({
-                      ...generator,
-                      date: event.target.value,
-                    })
+                    setGenerator({ ...generator, date: event.target.value })
                   }
                   required
                 />
@@ -439,15 +460,11 @@ function Fixtures() {
 
               <label>
                 First Match Time
-
                 <input
                   type="time"
                   value={generator.time}
                   onChange={(event) =>
-                    setGenerator({
-                      ...generator,
-                      time: event.target.value,
-                    })
+                    setGenerator({ ...generator, time: event.target.value })
                   }
                   required
                 />
@@ -455,14 +472,10 @@ function Fixtures() {
 
               <label>
                 Match Format
-
                 <select
                   value={generator.format}
                   onChange={(event) =>
-                    setGenerator({
-                      ...generator,
-                      format: event.target.value,
-                    })
+                    setGenerator({ ...generator, format: event.target.value })
                   }
                 >
                   <option value="BO1">BO1</option>
@@ -471,13 +484,10 @@ function Fixtures() {
               </label>
 
               <div className="modal-actions">
-
                 <button
                   className="button button-secondary"
                   type="button"
-                  onClick={() =>
-                    setIsGeneratorOpen(false)
-                  }
+                  onClick={() => setIsGeneratorOpen(false)}
                 >
                   Cancel
                 </button>
@@ -488,13 +498,9 @@ function Fixtures() {
                 >
                   Generate Fixtures
                 </button>
-
               </div>
-
             </form>
-
           </section>
-
         </div>
       )}
 
@@ -506,7 +512,6 @@ function Fixtures() {
           onSave={saveFixture}
         />
       )}
-
     </section>
   )
 }
