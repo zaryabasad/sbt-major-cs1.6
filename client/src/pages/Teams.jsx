@@ -22,6 +22,8 @@ function Teams() {
   const {
     isAdmin,
     isSuperAdmin,
+    isTeamAdmin,
+    teamId: assignedTeamId,
   } = useAuth()
 
   const {
@@ -45,6 +47,10 @@ function Teams() {
     color: '#F5C542',
     logo: '',
   })
+
+  const canViewBudget = (team) =>
+    isSuperAdmin ||
+    (isTeamAdmin && String(team?.id) === String(assignedTeamId))
 
   const openCreate = () => {
     if (!isSuperAdmin) return
@@ -153,8 +159,6 @@ function Teams() {
         return
       }
 
-      // Duplicate check is completely local to this function.
-      // No outside normalizedName variable is used.
       const duplicate = teams.some((item) => {
         const existingName = String(
           item.name || ''
@@ -182,36 +186,23 @@ function Teams() {
         name: teamName,
         owner: ownerName,
         startingBudget: budget,
-        budget: budget,
+        budget,
         color: form.color || '#F5C542',
         logo: form.logo || '',
       }
 
-      console.log('TEAM DATA:', teamData)
-
       if (selectedTeam) {
         await updateTeam(teamData)
-        toast.success(
-          'Team updated successfully'
-        )
+        toast.success('Team updated successfully')
       } else {
         await addTeam(teamData)
-        toast.success(
-          'Team created successfully'
-        )
+        toast.success('Team created successfully')
       }
 
       closeModal()
     } catch (error) {
-      console.error(
-        'TEAM SAVE ERROR:',
-        error
-      )
-
-      toast.error(
-        error?.message ||
-          'Failed to save team'
-      )
+      console.error('TEAM SAVE ERROR:', error)
+      toast.error(error?.message || 'Failed to save team')
     }
   }
 
@@ -220,22 +211,11 @@ function Teams() {
 
     try {
       await deleteTeam(teamToDelete.id)
-
-      toast.success(
-        `${teamToDelete.name} deleted`
-      )
-
+      toast.success(`${teamToDelete.name} deleted`)
       setTeamToDelete(null)
     } catch (error) {
-      console.error(
-        'TEAM DELETE ERROR:',
-        error
-      )
-
-      toast.error(
-        error?.message ||
-          'Failed to delete team'
-      )
+      console.error('TEAM DELETE ERROR:', error)
+      toast.error(error?.message || 'Failed to delete team')
     }
   }
 
@@ -249,22 +229,11 @@ function Teams() {
 
   return (
     <section className="teams-page">
-      {/* ============================= */}
-      {/* HEADER */}
-      {/* ============================= */}
-
       <header className="teams-heading">
         <div>
-          <p className="eyebrow">
-            SBT Major · Tournament Roster
-          </p>
-
+          <p className="eyebrow">SBT Major · Tournament Roster</p>
           <h1>Teams</h1>
-
-          <p>
-            Build and manage every competing
-            squad in the Major.
-          </p>
+          <p>Build and manage every competing squad in the Major.</p>
         </div>
 
         {isAdmin && !isSuperAdmin && (
@@ -285,20 +254,11 @@ function Teams() {
         )}
       </header>
 
-      {/* ============================= */}
-      {/* TEAMS */}
-      {/* ============================= */}
-
       {teams.length === 0 ? (
         <section className="empty-teams glass-card">
           <FaShieldAlt />
-
           <h2>No teams created yet</h2>
-
-          <p>
-            Add the first team to begin
-            preparing the SBT MAJOR roster.
-          </p>
+          <p>Add the first team to begin preparing the SBT MAJOR roster.</p>
 
           {isSuperAdmin && (
             <button
@@ -315,7 +275,6 @@ function Teams() {
         <div className="teams-grid">
           {teams.map((team) => {
             const roster = getRoster(team.id)
-
             const startingBudget = Number(
               team.startingBudget ??
                 team.budget ??
@@ -333,32 +292,26 @@ function Teams() {
               0
             )
 
-            const remainingBudget =
-              Math.max(
-                0,
-                startingBudget - spent
-              )
+            const remainingBudget = Math.max(
+              0,
+              startingBudget - spent
+            )
+
+            const showBudget = canViewBudget(team)
 
             return (
               <article
                 className="team-card glass-card"
                 key={team.id}
                 style={{
-                  '--team-color':
-                    team.color ||
-                    '#F5C542',
+                  '--team-color': team.color || '#F5C542',
                 }}
-                onClick={() =>
-                  setViewTeam(team)
-                }
+                onClick={() => setViewTeam(team)}
               >
                 <div className="team-card-top">
                   <div className="team-logo">
                     {team.logo ? (
-                      <img
-                        src={team.logo}
-                        alt={`${team.name} logo`}
-                      />
+                      <img src={team.logo} alt={`${team.name} logo`} />
                     ) : (
                       <FaShieldAlt />
                     )}
@@ -394,36 +347,23 @@ function Teams() {
                 <h2>{team.name}</h2>
 
                 <p className="team-owner">
-                  Owner:
-                  <strong>
-                    {' '}
-                    {team.owner || 'N/A'}
-                  </strong>
+                  Owner: <strong>{team.owner || 'N/A'}</strong>
                 </p>
 
                 <div className="team-details">
                   <div>
-                    <span>
-                      Remaining Budget
-                    </span>
-
+                    <span>Remaining Budget</span>
                     <strong>
-                      {formatCurrency(
-                        remainingBudget
-                      )}
+                      {showBudget
+                        ? formatCurrency(remainingBudget)
+                        : 'PRIVATE'}
                     </strong>
                   </div>
 
                   <div>
                     <FaUsers />
-
-                    <span>
-                      Players
-                    </span>
-
-                    <strong>
-                      {roster.length}
-                    </strong>
+                    <span>Players</span>
+                    <strong>{roster.length}</strong>
                   </div>
                 </div>
               </article>
@@ -432,20 +372,11 @@ function Teams() {
         </div>
       )}
 
-      {/* ============================= */}
-      {/* CREATE / EDIT MODAL */}
-      {/* ============================= */}
-
       {isSuperAdmin && isModalOpen && (
         <div
           className="modal-backdrop"
           onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              closeModal()
-            }
+            if (event.target === event.currentTarget) closeModal()
           }}
         >
           <div
@@ -469,38 +400,14 @@ function Teams() {
               <FaTimes />
             </button>
 
-            <p className="eyebrow">
-              TEAM MANAGEMENT
-            </p>
-
-            <h2
-              style={{
-                marginBottom: '24px',
-              }}
-            >
-              {selectedTeam
-                ? 'EDIT TEAM'
-                : 'CREATE TEAM'}
+            <p className="eyebrow">TEAM MANAGEMENT</p>
+            <h2 style={{ marginBottom: '24px' }}>
+              {selectedTeam ? 'EDIT TEAM' : 'CREATE TEAM'}
             </h2>
 
             <form onSubmit={saveTeam}>
-              {/* TEAM NAME */}
-
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '16px',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    marginBottom: '7px',
-                  }}
-                >
-                  TEAM NAME
-                </span>
-
+              <label style={{ display: 'block', marginBottom: '16px' }}>
+                <span style={{ display: 'block', marginBottom: '7px' }}>TEAM NAME</span>
                 <input
                   type="text"
                   name="name"
@@ -511,23 +418,8 @@ function Teams() {
                 />
               </label>
 
-              {/* OWNER */}
-
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '16px',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    marginBottom: '7px',
-                  }}
-                >
-                  OWNER NAME
-                </span>
-
+              <label style={{ display: 'block', marginBottom: '16px' }}>
+                <span style={{ display: 'block', marginBottom: '7px' }}>OWNER NAME</span>
                 <input
                   type="text"
                   name="owner"
@@ -538,86 +430,43 @@ function Teams() {
                 />
               </label>
 
-              {/* BUDGET + COLOR */}
-
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns:
-                    '1fr 120px',
+                  gridTemplateColumns: '1fr 120px',
                   gap: '14px',
                   marginBottom: '16px',
                 }}
               >
                 <label>
-                  <span
-                    style={{
-                      display: 'block',
-                      marginBottom: '7px',
-                    }}
-                  >
-                    STARTING BUDGET
-                  </span>
-
+                  <span style={{ display: 'block', marginBottom: '7px' }}>STARTING BUDGET</span>
                   <input
                     type="number"
                     name="startingBudget"
                     min="0"
                     step="1000"
-                    value={
-                      form.startingBudget
-                    }
+                    value={form.startingBudget}
                     onChange={handleInput}
                   />
                 </label>
 
                 <label>
-                  <span
-                    style={{
-                      display: 'block',
-                      marginBottom: '7px',
-                    }}
-                  >
-                    TEAM COLOR
-                  </span>
-
+                  <span style={{ display: 'block', marginBottom: '7px' }}>TEAM COLOR</span>
                   <input
                     type="color"
                     name="color"
-                    value={
-                      form.color
-                    }
+                    value={form.color}
                     onChange={handleInput}
-                    style={{
-                      width: '100%',
-                      height: '42px',
-                      padding: '3px',
-                    }}
+                    style={{ width: '100%', height: '42px', padding: '3px' }}
                   />
                 </label>
               </div>
 
-              {/* LOGO */}
-
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '20px',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    marginBottom: '7px',
-                  }}
-                >
-                  TEAM LOGO
-                </span>
-
+              <label style={{ display: 'block', marginBottom: '20px' }}>
+                <span style={{ display: 'block', marginBottom: '7px' }}>TEAM LOGO</span>
                 <div
                   style={{
-                    border:
-                      '1px dashed rgba(255,255,255,.25)',
+                    border: '1px dashed rgba(255,255,255,.25)',
                     padding: '16px',
                     textAlign: 'center',
                     borderRadius: '8px',
@@ -633,61 +482,38 @@ function Teams() {
                           height: '90px',
                           objectFit: 'contain',
                           display: 'block',
-                          margin:
-                            '0 auto 12px',
+                          margin: '0 auto 12px',
                         }}
                       />
-
                       <button
                         type="button"
                         className="button button-secondary"
                         onClick={() =>
-                          setForm(
-                            (current) => ({
-                              ...current,
-                              logo: '',
-                            })
-                          )
+                          setForm((current) => ({ ...current, logo: '' }))
                         }
                       >
                         Remove Logo
                       </button>
                     </div>
                   ) : (
-                    <label
-                      style={{
-                        cursor: 'pointer',
-                        display: 'block',
-                      }}
-                    >
+                    <label style={{ cursor: 'pointer', display: 'block' }}>
                       <FaImage />
-
-                      <div>
-                        Choose image file
-                      </div>
-
+                      <div>Choose image file</div>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={
-                          handleLogo
-                        }
-                        style={{
-                          display: 'none',
-                        }}
+                        onChange={handleLogo}
+                        style={{ display: 'none' }}
                       />
                     </label>
                   )}
                 </div>
               </label>
 
-              {/* ACTIONS */}
-
               <div
                 style={{
                   display: 'flex',
-                  justifyContent:
-                    'flex-end',
+                  justifyContent: 'flex-end',
                   gap: '10px',
                 }}
               >
@@ -698,14 +524,8 @@ function Teams() {
                 >
                   CANCEL
                 </button>
-
-                <button
-                  type="submit"
-                  className="button button-primary"
-                >
-                  {selectedTeam
-                    ? 'SAVE CHANGES'
-                    : 'CREATE TEAM'}
+                <button type="submit" className="button button-primary">
+                  {selectedTeam ? 'SAVE CHANGES' : 'CREATE TEAM'}
                 </button>
               </div>
             </form>
@@ -713,32 +533,21 @@ function Teams() {
         </div>
       )}
 
-      {/* ============================= */}
-      {/* DELETE CONFIRM */}
-      {/* ============================= */}
-
       {isSuperAdmin && teamToDelete && (
         <ConfirmDialog
           title="Delete Team"
           message={`Are you sure you want to delete ${teamToDelete.name}?`}
           onConfirm={confirmDelete}
-          onCancel={() =>
-            setTeamToDelete(null)
-          }
+          onCancel={() => setTeamToDelete(null)}
         />
       )}
-
-      {/* ============================= */}
-      {/* TEAM DETAILS */}
-      {/* ============================= */}
 
       {viewTeam && (
         <TeamDetailsModal
           team={viewTeam}
           players={getRoster(viewTeam.id)}
-          onClose={() =>
-            setViewTeam(null)
-          }
+          canViewBudget={canViewBudget(viewTeam)}
+          onClose={() => setViewTeam(null)}
         />
       )}
     </section>
