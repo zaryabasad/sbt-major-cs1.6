@@ -1,6 +1,6 @@
 -- Prevent a team that has clicked OUT from bidding again on the same player.
--- This is enforced in PostgreSQL so the OUT status cannot be bypassed
--- even if the browser UI is stale or a direct insert is attempted.
+-- The auction tables use different ID types in some environments,
+-- so compare the IDs as text to avoid uuid = text operator errors.
 
 CREATE OR REPLACE FUNCTION public.block_out_team_bid()
 RETURNS trigger
@@ -13,8 +13,8 @@ BEGIN
      AND EXISTS (
        SELECT 1
        FROM public.auction_team_out o
-       WHERE o.player_id = NEW.player_id
-         AND o.team_id = NEW.team_id
+       WHERE o.player_id::text = NEW.player_id::text
+         AND o.team_id::text = NEW.team_id::text
      )
   THEN
     RAISE EXCEPTION 'Your team is OUT for this player and cannot bid again.'
@@ -31,6 +31,7 @@ DROP TRIGGER IF EXISTS auction_out_bid_guard
 CREATE TRIGGER auction_out_bid_guard
 BEFORE INSERT ON public.auction_history
 FOR EACH ROW
+WHEN (NEW.type = 'bid')
 EXECUTE FUNCTION public.block_out_team_bid();
 
 NOTIFY pgrst, 'reload schema';
