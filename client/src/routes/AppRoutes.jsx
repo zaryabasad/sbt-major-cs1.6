@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import Admin from '../pages/Admin'
 import Auction from '../pages/Auction'
-import Chat from '../pages/Chat'
+import GroupChat from '../pages/GroupChat'
 import Fixtures from '../pages/Fixtures'
 import Home from '../pages/Home'
 import Login from '../pages/Login'
@@ -26,7 +26,7 @@ function AppRoutes() {
           <Route path="/fixtures" element={<Fixtures />} />
           <Route path="/playoffs" element={<Playoffs />} />
           <Route path="/stats" element={<Stats />} />
-          <Route path="/chat" element={<Chat />} />
+          <Route path="/chat" element={<GroupChat />} />
           <Route path="/voice" element={<VoiceChat />} />
           <Route path="/player-register" element={<PlayerRegister />} />
 
