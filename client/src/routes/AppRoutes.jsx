@@ -3,7 +3,7 @@ import MainLayout from '../layouts/MainLayout'
 import Admin from '../pages/Admin'
 import Auction from '../pages/Auction'
 import GroupChat from '../pages/GroupChat'
-import PoolFixtures from '../pages/PoolFixtures'
+import PoolFixturesAdminBar from '../pages/PoolFixturesAdminBar'
 import Home from '../pages/Home'
 import Login from '../pages/Login'
 import PoolPlayoffs from '../pages/PoolPlayoffs'
@@ -23,7 +23,7 @@ function AppRoutes() {
           <Route path="/auction" element={<Auction />} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/players" element={<Players />} />
-          <Route path="/fixtures" element={<PoolFixtures />} />
+          <Route path="/fixtures" element={<PoolFixturesAdminBar />} />
           <Route path="/playoffs" element={<PoolPlayoffs />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/chat" element={<GroupChat />} />
