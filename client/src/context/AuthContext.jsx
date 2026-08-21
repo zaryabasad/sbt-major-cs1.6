@@ -32,6 +32,27 @@ function getIsSuperAdminByEmail(currentUser) {
 async function loadUserProfile(currentUser) {
   if (!currentUser?.id) return null
 
+  // Super Admin is authoritative by the configured admin email.
+  // This prevents a stale/misconfigured admin_users role from hiding
+  // Super Admin controls such as fixture/pool management.
+  if (getIsSuperAdminByEmail(currentUser)) {
+    const { data: adminData, error: adminError } = await supabase
+      .from('admin_users')
+      .select('user_id, email, role, team_id')
+      .eq('user_id', currentUser.id)
+      .maybeSingle()
+
+    if (adminError) console.error('ADMIN PROFILE LOAD ERROR:', adminError)
+
+    return {
+      userId: currentUser.id,
+      email: normalizeEmail(adminData?.email) || getEmail(currentUser),
+      role: 'super_admin',
+      teamId: null,
+      playerRegistrationId: null,
+    }
+  }
+
   const { data: adminData, error: adminError } = await supabase
     .from('admin_users')
     .select('user_id, email, role, team_id')
@@ -46,16 +67,6 @@ async function loadUserProfile(currentUser) {
       email: normalizeEmail(adminData.email) || getEmail(currentUser),
       role: adminData.role === 'super_admin' ? 'super_admin' : 'team_admin',
       teamId: adminData.team_id || null,
-      playerRegistrationId: null,
-    }
-  }
-
-  if (getIsSuperAdminByEmail(currentUser)) {
-    return {
-      userId: currentUser.id,
-      email: getEmail(currentUser),
-      role: 'super_admin',
-      teamId: null,
       playerRegistrationId: null,
     }
   }
