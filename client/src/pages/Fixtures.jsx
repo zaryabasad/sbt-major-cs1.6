@@ -57,10 +57,7 @@ function generateRoundRobin(teams, date, time, format) {
 
 function Fixtures() {
   const { teams } = useTeams()
-  const {
-    isAdmin,
-    isSuperAdmin,
-  } = useAuth()
+  const { isAdmin, isSuperAdmin } = useAuth()
 
   const {
     fixtures,
@@ -79,23 +76,18 @@ function Fixtures() {
     format: 'BO1',
   })
 
-  const getTeam = (id) =>
-    teams.find((team) => team.id === id)
+  const getTeam = (id) => teams.find((team) => team.id === id)
 
   const generateFixtures = async (event) => {
     if (!isSuperAdmin) {
-      toast.error(
-        'Only the Super Admin can generate fixtures'
-      )
+      toast.error('Only the Super Admin can generate fixtures')
       return
     }
 
     event.preventDefault()
 
     if (teams.length < 2) {
-      toast.error(
-        'Create at least two teams before generating fixtures'
-      )
+      toast.error('Create at least two teams before generating fixtures')
       return
     }
 
@@ -109,10 +101,7 @@ function Fixtures() {
     try {
       await replaceFixtures(newFixtures)
       setIsGeneratorOpen(false)
-
-      toast.success(
-        `${newFixtures.length} Round Robin fixtures generated`
-      )
+      toast.success(`${newFixtures.length} Round Robin fixtures generated`)
     } catch (error) {
       toast.error(error?.message || 'Failed to generate fixtures')
     }
@@ -153,12 +142,12 @@ function Fixtures() {
     )
 
     if (poolFixtures.length === 0) {
-      toast.error('There are no pool fixtures to clear')
+      toast.error('No Pool A/B fixtures found to clear')
       return
     }
 
     const confirmed = window.confirm(
-      `Clear all ${poolFixtures.length} pool fixtures? Non-pool fixtures will remain.`
+      `Clear all ${poolFixtures.length} Pool A/B fixtures? Other fixtures will remain.`
     )
 
     if (!confirmed) return
@@ -182,16 +171,13 @@ function Fixtures() {
 
   const saveFixture = async (fixture) => {
     if (!isSuperAdmin) {
-      toast.error(
-        'Only the Super Admin can edit fixtures'
-      )
+      toast.error('Only the Super Admin can edit fixtures')
       return
     }
 
     try {
       await updateFixture(fixture)
       setSelectedFixture(null)
-
       toast.success('Fixture updated')
     } catch (error) {
       toast.error(error?.message || 'Failed to update fixture')
@@ -249,36 +235,26 @@ function Fixtures() {
 
       <header className="fixtures-heading">
         <div>
-          <p className="eyebrow">
-            SBT Major · Tournament Schedule
-          </p>
-
+          <p className="eyebrow">SBT Major · Tournament Schedule</p>
           <h1>Fixtures</h1>
-
-          <p>
-            Generate and manage the tournament's Round Robin stage.
-          </p>
+          <p>Generate and manage the tournament's Round Robin stage.</p>
         </div>
 
         {isAdmin && !isSuperAdmin && (
-          <div className="fixtures-readonly-note">
-            Team Admin · Read Only
-          </div>
+          <div className="fixtures-readonly-note">Team Admin · Read Only</div>
         )}
 
         {isSuperAdmin && (
           <div className="fixtures-heading-actions">
-            {fixtures.some((fixture) => String(fixture.pool || '').trim()) && (
-              <button
-                className="button button-secondary fixtures-pool-clear-button"
-                type="button"
-                onClick={clearPoolFixtures}
-                disabled={isClearingPool}
-              >
-                <FaTrash />
-                {isClearingPool ? 'Clearing Pool…' : 'Clear Pool'}
-              </button>
-            )}
+            <button
+              className="button button-secondary fixtures-pool-clear-button"
+              type="button"
+              onClick={clearPoolFixtures}
+              disabled={isClearingPool}
+            >
+              <FaTrash />
+              {isClearingPool ? 'Clearing Pool…' : 'Clear Pool'}
+            </button>
 
             {fixtures.length > 0 && (
               <button
@@ -308,10 +284,7 @@ function Fixtures() {
         <section className="empty-teams glass-card">
           <FaPlus />
           <h2>No fixtures generated</h2>
-          <p>
-            Create a Round Robin schedule from your existing
-            team roster.
-          </p>
+          <p>Create a Round Robin schedule from your existing team roster.</p>
 
           {isSuperAdmin && (
             <button
@@ -334,9 +307,7 @@ function Fixtures() {
             return (
               <article
                 className={`fixture-card glass-card ${
-                  fixture.status === 'Completed'
-                    ? 'fixture-completed'
-                    : ''
+                  fixture.status === 'Completed' ? 'fixture-completed' : ''
                 }`}
                 key={fixture.id}
               >
@@ -344,60 +315,31 @@ function Fixtures() {
                   <span>
                     {fixture.pool ? `Pool ${fixture.pool}` : `Round ${fixture.round}`}
                   </span>
-                  <span>
-                    {fixture.date} · {fixture.time}
-                  </span>
+                  <span>{fixture.date} · {fixture.time}</span>
                 </div>
 
                 <div className="fixture-match">
-                  <strong
-                    className={
-                      winner?.id === home?.id
-                        ? 'winner'
-                        : ''
-                    }
-                  >
+                  <strong className={winner?.id === home?.id ? 'winner' : ''}>
                     {home?.name || 'Deleted Team'}
                   </strong>
-
-                  <span className="fixture-vs">
-                    VS
-                  </span>
-
-                  <strong
-                    className={
-                      winner?.id === away?.id
-                        ? 'winner'
-                        : ''
-                    }
-                  >
+                  <span className="fixture-vs">VS</span>
+                  <strong className={winner?.id === away?.id ? 'winner' : ''}>
                     {away?.name || 'Deleted Team'}
                   </strong>
                 </div>
 
                 <div className="fixture-bottom">
-                  <span className="fixture-format">
-                    {fixture.format}
-                  </span>
-
+                  <span className="fixture-format">{fixture.format}</span>
                   <div className="fixture-score">
                     <span>{fixture.homeScore ?? 0}</span>
                     <b>:</b>
                     <span>{fixture.awayScore ?? 0}</span>
                   </div>
-
-                  <span
-                    className={
-                      fixture.status === 'Completed'
-                        ? 'fixture-status completed'
-                        : 'fixture-status'
-                    }
-                  >
+                  <span className={fixture.status === 'Completed' ? 'fixture-status completed' : 'fixture-status'}>
                     {fixture.status === 'Completed'
                       ? `Winner: ${winner?.name || 'Winner pending'}`
                       : 'Upcoming'}
                   </span>
-
                   {isSuperAdmin && (
                     <button
                       className="icon-button"
@@ -438,12 +380,9 @@ function Fixtures() {
             <form onSubmit={generateFixtures}>
               <p>
                 {teams.length} teams will produce{' '}
-                {teams.length > 1
-                  ? (teams.length * (teams.length - 1)) / 2
-                  : 0}{' '}
+                {teams.length > 1 ? (teams.length * (teams.length - 1)) / 2 : 0}{' '}
                 fixtures.
               </p>
-
               <p>Matches are scheduled 75 minutes apart.</p>
 
               <label>
@@ -451,9 +390,7 @@ function Fixtures() {
                 <input
                   type="date"
                   value={generator.date}
-                  onChange={(event) =>
-                    setGenerator({ ...generator, date: event.target.value })
-                  }
+                  onChange={(event) => setGenerator({ ...generator, date: event.target.value })}
                   required
                 />
               </label>
@@ -463,9 +400,7 @@ function Fixtures() {
                 <input
                   type="time"
                   value={generator.time}
-                  onChange={(event) =>
-                    setGenerator({ ...generator, time: event.target.value })
-                  }
+                  onChange={(event) => setGenerator({ ...generator, time: event.target.value })}
                   required
                 />
               </label>
@@ -474,9 +409,7 @@ function Fixtures() {
                 Match Format
                 <select
                   value={generator.format}
-                  onChange={(event) =>
-                    setGenerator({ ...generator, format: event.target.value })
-                  }
+                  onChange={(event) => setGenerator({ ...generator, format: event.target.value })}
                 >
                   <option value="BO1">BO1</option>
                   <option value="BO3">BO3</option>
@@ -491,11 +424,7 @@ function Fixtures() {
                 >
                   Cancel
                 </button>
-
-                <button
-                  className="button button-primary"
-                  type="submit"
-                >
+                <button className="button button-primary" type="submit">
                   Generate Fixtures
                 </button>
               </div>
