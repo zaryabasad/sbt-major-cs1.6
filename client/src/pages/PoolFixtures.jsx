@@ -6,15 +6,57 @@ import { useFixtures } from '../context/FixturesContext'
 import { useTeams } from '../context/TeamsContext'
 import Fixtures from './Fixtures'
 
-function getPools(teams) {
-  const ordered = [...teams].sort((a, b) => {
-    const nameCompare = String(a.name || '').localeCompare(String(b.name || ''))
-    return nameCompare || String(a.id).localeCompare(String(b.id))
-  })
+function secureRandomInt(max) {
+  if (max <= 1) return 0
+
+  const range = 0x100000000
+  const limit = Math.floor(range / max) * max
+  const buffer = new Uint32Array(1)
+
+  do {
+    crypto.getRandomValues(buffer)
+  } while (buffer[0] >= limit)
+
+  return buffer[0] % max
+}
+
+function shuffleTeams(teams) {
+  const shuffled = [...teams]
+
+  // Fisher-Yates with rejection sampling so each permutation has
+  // equal probability. Team names/IDs never influence the draw.
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = secureRandomInt(i + 1)
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  return shuffled
+}
+
+function drawPools(teams) {
+  const shuffled = shuffleTeams(teams)
 
   return {
-    poolA: [ordered[0], ordered[2], ordered[4]].filter(Boolean),
-    poolB: [ordered[1], ordered[3], ordered[5]].filter(Boolean),
+    poolA: shuffled.slice(0, 3),
+    poolB: shuffled.slice(3, 6),
+  }
+}
+
+function poolsFromFixtures(poolFixtures, teams) {
+  const homeIds = [...new Set(
+    poolFixtures.map((fixture) => fixture.homeTeamId).filter(Boolean),
+  )]
+  const awayIds = [...new Set(
+    poolFixtures.map((fixture) => fixture.awayTeamId).filter(Boolean),
+  )]
+
+  return {
+    poolA: homeIds
+      .map((id) => teams.find((team) => team.id === id))
+      .filter(Boolean),
+    poolB: awayIds
+      .map((id) => teams.find((team) => team.id === id))
+      .filter(Boolean),
   }
 }
 
@@ -26,9 +68,8 @@ function generatePoolFixtures(poolA, poolB, date, time) {
     for (let index = 0; index < 3; index += 1) {
       const home = poolA[index]
       const away = poolB[(index + round) % 3]
-      const offset = matches.length * 75
       const matchDate = new Date(start)
-      matchDate.setMinutes(start.getMinutes() + offset)
+      matchDate.setMinutes(start.getMinutes() + matches.length * 75)
 
       matches.push({
         id: crypto.randomUUID(),
@@ -69,12 +110,15 @@ function PoolFixtures() {
   })
   const [draft, setDraft] = useState(null)
 
-  const { poolA, poolB } = useMemo(() => getPools(teams), [teams])
   const poolFixtures = useMemo(
     () => fixtures.filter((fixture) => fixture.pool === 'A-B'),
     [fixtures],
   )
   const hasPools = poolFixtures.length > 0
+  const { poolA, poolB } = useMemo(
+    () => poolsFromFixtures(poolFixtures, teams),
+    [poolFixtures, teams],
+  )
 
   if (teams.length !== 6) return <Fixtures />
 
@@ -88,14 +132,10 @@ function PoolFixtures() {
     event.preventDefault()
     if (!isSuperAdmin) return
 
-    if (teams.length !== 6) {
-      toast.error('The pool format requires exactly 6 teams.')
-      return
-    }
-
+    const nextPools = drawPools(teams)
     const nextFixtures = generatePoolFixtures(
-      poolA,
-      poolB,
+      nextPools.poolA,
+      nextPools.poolB,
       generator.date,
       generator.time,
     )
@@ -103,7 +143,7 @@ function PoolFixtures() {
     try {
       await replaceFixtures(nextFixtures)
       setIsGeneratorOpen(false)
-      toast.success('2 pools created · 9 BO1 cross-pool fixtures generated')
+      toast.success('Fresh random pools drawn · 9 BO1 fixtures generated')
     } catch (error) {
       toast.error(error?.message || 'Could not generate pool fixtures')
     }
@@ -113,7 +153,7 @@ function PoolFixtures() {
     if (!isSuperAdmin || isClearing) return
 
     const confirmed = window.confirm(
-      'Clear Pool A and Pool B? This will remove all 9 pool fixtures, but will keep teams, players and auction data.'
+      'Clear Pool A and Pool B? This removes the 9 pool fixtures only. Teams, players and auction data will stay safe.'
     )
     if (!confirmed) return
 
@@ -190,7 +230,7 @@ function PoolFixtures() {
         <FaUsers />
         <div>
           <p className="eyebrow" style={{ margin: 0 }}>POOL {name}</p>
-          <h2 style={{ margin: 0 }}>{pool.map((team) => team?.name).join(' · ')}</h2>
+          <h2 style={{ margin: 0 }}>{pool.map((team) => team?.name).join(' · ') || 'Not drawn'}</h2>
         </div>
       </header>
       <div style={{ display: 'grid', gap: 8 }}>
@@ -232,7 +272,7 @@ function PoolFixtures() {
         <div>
           <p className="eyebrow">SBT MAJOR · POOL STAGE</p>
           <h1>Pool A vs Pool B</h1>
-          <p>6 teams → 2 pools of 3 → every team plays the opposite pool once.</p>
+          <p>6 teams → fresh random draw each generation → 2 pools of 3.</p>
         </div>
 
         {isAdmin && !isSuperAdmin && (
@@ -257,21 +297,21 @@ function PoolFixtures() {
               type="button"
               onClick={() => setIsGeneratorOpen(true)}
             >
-              <FaRandom /> {hasPools ? 'Regenerate Pool Stage' : 'Generate Pool Stage'}
+              <FaRandom /> {hasPools ? 'Regenerate with New Draw' : 'Generate Pool Stage'}
             </button>
           </div>
         )}
       </header>
 
       <p className="pool-stage-note">
-        Pool A and Pool B each contain 3 teams. Each team plays all 3 teams from the opposite pool once, giving 9 BO1 matches total. Top 2 from each pool advance to the Semi Finals.
+        Pool assignment is shuffled independently every time the pool stage is generated. Team names and IDs never determine Pool A or Pool B.
       </p>
 
       {!hasPools ? (
         <section className="glass-card playoff-empty">
           <FaRandom />
           <h2>No pools created</h2>
-          <p>Pool A and Pool B are currently cleared. Generate the 9 cross-pool BO1 fixtures when you are ready.</p>
+          <p>Generate the pool stage to draw a fresh random Pool A and Pool B.</p>
         </section>
       ) : (
         <>
@@ -301,13 +341,9 @@ function PoolFixtures() {
                         </div>
 
                         <div className="pool-fixture-match">
-                          <strong>
-                            {home?.name || 'TBD'} {completed && fixture.winnerId === home?.id ? '✓' : ''}
-                          </strong>
+                          <strong>{home?.name || 'TBD'} {completed && fixture.winnerId === home?.id ? '✓' : ''}</strong>
                           <span className="pool-fixture-vs">VS</span>
-                          <strong>
-                            {away?.name || 'TBD'} {completed && fixture.winnerId === away?.id ? '✓' : ''}
-                          </strong>
+                          <strong>{away?.name || 'TBD'} {completed && fixture.winnerId === away?.id ? '✓' : ''}</strong>
                         </div>
 
                         <div className="pool-fixture-bottom">
@@ -340,7 +376,7 @@ function PoolFixtures() {
             <section className="glass-card" style={{ marginTop: 16 }}>
               <strong>{completedCount}/9 pool matches completed</strong>
               <p style={{ margin: '6px 0 0' }}>
-                When all 9 are complete, the top 2 teams from Pool A and Pool B can advance to the Semi Finals.
+                When all 9 are complete, the top 2 teams from Pool A and Pool B advance to the Semi Finals.
               </p>
             </section>
           )}
@@ -349,44 +385,17 @@ function PoolFixtures() {
 
       {isSuperAdmin && isGeneratorOpen && (
         <div className="modal-backdrop" onMouseDown={() => setIsGeneratorOpen(false)}>
-          <section
-            className="team-modal fixture-modal"
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+          <section className="team-modal fixture-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <p className="eyebrow">Tournament Schedule</p>
             <h2>Generate 2-Pool Stage</h2>
-            <p>Exactly 6 teams will be split into Pool A and Pool B. 9 BO1 matches will be generated.</p>
+            <p>All 6 teams will be freshly shuffled into Pool A and Pool B. Then 9 BO1 cross-pool fixtures will be generated.</p>
 
             <form onSubmit={generate}>
-              <label>
-                First Match Date
-                <input
-                  type="date"
-                  value={generator.date}
-                  onChange={(event) => setGenerator({ ...generator, date: event.target.value })}
-                  required
-                />
-              </label>
-
-              <label>
-                First Match Time
-                <input
-                  type="time"
-                  value={generator.time}
-                  onChange={(event) => setGenerator({ ...generator, time: event.target.value })}
-                  required
-                />
-              </label>
-
+              <label>First Match Date<input type="date" value={generator.date} onChange={(event) => setGenerator({ ...generator, date: event.target.value })} required /></label>
+              <label>First Match Time<input type="time" value={generator.time} onChange={(event) => setGenerator({ ...generator, time: event.target.value })} required /></label>
               <div className="modal-actions">
-                <button className="button button-secondary" type="button" onClick={() => setIsGeneratorOpen(false)}>
-                  Cancel
-                </button>
-                <button className="button button-primary" type="submit">
-                  Generate 9 Fixtures
-                </button>
+                <button className="button button-secondary" type="button" onClick={() => setIsGeneratorOpen(false)}>Cancel</button>
+                <button className="button button-primary" type="submit">Shuffle & Generate 9 Fixtures</button>
               </div>
             </form>
           </section>
@@ -395,53 +404,18 @@ function PoolFixtures() {
 
       {isSuperAdmin && editing && draft && (
         <div className="modal-backdrop" onMouseDown={() => setEditing(null)}>
-          <section
-            className="team-modal fixture-modal"
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+          <section className="team-modal fixture-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <p className="eyebrow">Match Result</p>
             <h2>{getTeam(editing.homeTeamId)?.name} vs {getTeam(editing.awayTeamId)?.name}</h2>
-
-            <label>
-              Home Score
-              <input
-                type="number"
-                min="0"
-                value={draft.homeScore}
-                onChange={(event) => setDraft({ ...draft, homeScore: event.target.value })}
-              />
-            </label>
-
-            <label>
-              Away Score
-              <input
-                type="number"
-                min="0"
-                value={draft.awayScore}
-                onChange={(event) => setDraft({ ...draft, awayScore: event.target.value })}
-              />
-            </label>
-
-            <label>
-              Status
-              <select
-                value={draft.status}
-                onChange={(event) => setDraft({ ...draft, status: event.target.value })}
-              >
-                <option value="Upcoming">Upcoming</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </label>
-
+            <label>Home Score<input type="number" min="0" value={draft.homeScore} onChange={(event) => setDraft({ ...draft, homeScore: event.target.value })} /></label>
+            <label>Away Score<input type="number" min="0" value={draft.awayScore} onChange={(event) => setDraft({ ...draft, awayScore: event.target.value })} /></label>
+            <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Completed">Completed</option>
+            </select></label>
             <div className="modal-actions">
-              <button className="button button-secondary" type="button" onClick={() => setEditing(null)}>
-                Cancel
-              </button>
-              <button className="button button-primary" type="button" onClick={saveEdit}>
-                Save Result
-              </button>
+              <button className="button button-secondary" type="button" onClick={() => setEditing(null)}>Cancel</button>
+              <button className="button button-primary" type="button" onClick={saveEdit}>Save Result</button>
             </div>
           </section>
         </div>
