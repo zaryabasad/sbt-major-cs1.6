@@ -1,0 +1,17 @@
+@media (min-width: 721px) {
+  .mobile-nav-panel,
+  .mobile-menu-button {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header-desktop-nav,
+  .site-header-desktop-login {
+    display: none !important;
+  }
+
+  .site-header {
+    justify-content: space-between;
+  }
+}

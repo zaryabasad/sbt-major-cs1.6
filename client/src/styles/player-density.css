@@ -1,0 +1,98 @@
+/* Compact player management cards — desktop shows ~20 players. */
+.players-page .players-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.players-page .player-card {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+/* Force the actual player image wrapper to stay compact even if older CSS says width:100%. */
+.players-page .player-image {
+  width: 96px !important;
+  height: 96px !important;
+  min-width: 96px !important;
+  min-height: 96px !important;
+  max-width: 96px !important;
+  max-height: 96px !important;
+  aspect-ratio: 1 / 1 !important;
+  margin: 8px auto 5px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  flex: 0 0 96px !important;
+}
+
+.players-page .player-image img {
+  width: 96px !important;
+  height: 96px !important;
+  max-width: 96px !important;
+  max-height: 96px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.players-page .player-image svg {
+  font-size: 2.1rem !important;
+}
+
+.players-page .player-card-content {
+  padding: 7px 10px 10px !important;
+}
+
+.players-page .player-card h2 {
+  margin: 5px 0 1px !important;
+  font-size: .9rem !important;
+  line-height: 1.03 !important;
+}
+
+.players-page .player-nickname,
+.players-page .player-profile {
+  margin: 2px 0 !important;
+  font-size: .58rem !important;
+}
+
+.players-page .player-meta {
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  font-size: .56rem !important;
+}
+
+@media (max-width: 1200px) {
+  .players-page .players-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .players-page .players-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .players-page .players-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .players-page .player-image,
+  .players-page .player-image img {
+    width: 72px !important;
+    height: 72px !important;
+    min-width: 72px !important;
+    min-height: 72px !important;
+    max-width: 72px !important;
+    max-height: 72px !important;
+    flex-basis: 72px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .players-page .players-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
