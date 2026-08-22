@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {
   calculateLegacyScore,
   getLegendsLeaderboard,
-} from "../data/legendsData";
+} from "../data/LegendsData";
 
 export default function Legends() {
   const [activeTab, setActiveTab] = useState("legends");
@@ -20,8 +20,8 @@ export default function Legends() {
 
     return [...players].sort(
       (a, b) =>
-        b.achievements[achievementFilter] -
-        a.achievements[achievementFilter]
+        (b.achievements?.[achievementFilter] || 0) -
+        (a.achievements?.[achievementFilter] || 0)
     );
   }, [players, achievementFilter]);
 
@@ -45,15 +45,15 @@ export default function Legends() {
       </p>
 
       <div style={{ lineHeight: 1.8 }}>
-        🏆 {player.achievements.trophies} &nbsp;
-        🏅 {player.achievements.medals} &nbsp;
-        🥇 {player.achievements.gold} &nbsp;
-        🥈 {player.achievements.silver} &nbsp;
-        🥉 {player.achievements.bronze}
+        🏆 {player.achievements?.trophies || 0} &nbsp;
+        🏅 {player.achievements?.medals || 0} &nbsp;
+        🥇 {player.achievements?.gold || 0} &nbsp;
+        🥈 {player.achievements?.silver || 0} &nbsp;
+        🥉 {player.achievements?.bronze || 0}
         <br />
-        ⭐ Captain: {player.runnerUp.captain} &nbsp;
-        🪙 Player: {player.runnerUp.player} &nbsp;
-        ❌ Pool Outs: {player.poolOuts}
+        ⭐ Captain: {player.runnerUp?.captain || 0} &nbsp;
+        🪙 Player: {player.runnerUp?.player || 0} &nbsp;
+        ❌ Pool Outs: {player.poolOuts || 0}
       </div>
     </div>
   );
@@ -148,22 +148,34 @@ export default function Legends() {
           <h2>⭐ Runner-Up Captains</h2>
 
           {[...players]
-            .sort((a, b) => b.runnerUp.captain - a.runnerUp.captain)
-            .filter((p) => p.runnerUp.captain > 0)
+            .sort(
+              (a, b) =>
+                (b.runnerUp?.captain || 0) -
+                (a.runnerUp?.captain || 0)
+            )
+            .filter((p) => (p.runnerUp?.captain || 0) > 0)
             .map((player, index) => (
-              <div key={player.id}>
-                #{index + 1} {player.name} — ⭐ {player.runnerUp.captain}
+              <div key={player.id} style={{ marginBottom: "10px" }}>
+                #{index + 1} {player.name} — ⭐{" "}
+                {player.runnerUp?.captain || 0}
               </div>
             ))}
 
-          <h2 style={{ marginTop: "30px" }}>🪙 Runner-Up Players</h2>
+          <h2 style={{ marginTop: "30px" }}>
+            🪙 Runner-Up Players
+          </h2>
 
           {[...players]
-            .sort((a, b) => b.runnerUp.player - a.runnerUp.player)
-            .filter((p) => p.runnerUp.player > 0)
+            .sort(
+              (a, b) =>
+                (b.runnerUp?.player || 0) -
+                (a.runnerUp?.player || 0)
+            )
+            .filter((p) => (p.runnerUp?.player || 0) > 0)
             .map((player, index) => (
-              <div key={player.id}>
-                #{index + 1} {player.name} — 🪙 {player.runnerUp.player}
+              <div key={player.id} style={{ marginBottom: "10px" }}>
+                #{index + 1} {player.name} — 🪙{" "}
+                {player.runnerUp?.player || 0}
               </div>
             ))}
         </>
@@ -174,11 +186,11 @@ export default function Legends() {
           <h2>❌ Tournament Battles — Pool Outs</h2>
 
           {[...players]
-            .sort((a, b) => b.poolOuts - a.poolOuts)
-            .filter((p) => p.poolOuts > 0)
+            .sort((a, b) => (b.poolOuts || 0) - (a.poolOuts || 0))
+            .filter((p) => (p.poolOuts || 0) > 0)
             .map((player, index) => (
-              <div key={player.id}>
-                #{index + 1} {player.name} — ❌ {player.poolOuts}
+              <div key={player.id} style={{ marginBottom: "10px" }}>
+                #{index + 1} {player.name} — ❌ {player.poolOuts || 0}
               </div>
             ))}
         </>
