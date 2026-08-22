@@ -13,6 +13,7 @@ import VoiceChat from '../pages/VoiceChatFixed'
 import ProtectedRoute from '../components/ProtectedRoute'
 import Players from '../pages/Players'
 import PlayerRegister from '../pages/PlayerRegister'
+import Legends from '../pages/Legends'
 
 function AppRoutes() {
   return (
@@ -26,6 +27,7 @@ function AppRoutes() {
           <Route path="/fixtures" element={<PoolFixturesAdminBar />} />
           <Route path="/playoffs" element={<PoolPlayoffs />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/legends" element={<Legends />} />
           <Route path="/chat" element={<GroupChat />} />
           <Route path="/voice" element={<VoiceChat />} />
           <Route path="/player-register" element={<PlayerRegister />} />
