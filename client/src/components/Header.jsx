@@ -11,6 +11,7 @@ const navigation = [
   { label: 'Fixtures', to: '/fixtures' },
   { label: 'Playoffs', to: '/playoffs' },
   { label: 'Statistics', to: '/stats' },
+  { label: '🏆 Legends', to: '/legends' },
   { label: 'Register as Player', to: '/player-register' },
 ]
 
