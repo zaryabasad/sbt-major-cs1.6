@@ -1,0 +1,529 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
+import { supabase } from '../lib/supabase'
+
+const PlayersContext = createContext(null)
+
+const STORAGE_KEY = 'sbt-major-players'
+
+// ==========================================
+// SUPABASE → FRONTEND
+// ==========================================
+
+function safeNumber(value, fallback = 0) {
+  const number = Number(value)
+
+  return Number.isFinite(number)
+    ? number
+    : fallback
+}
+
+function mapSupabasePlayer(player) {
+  return {
+    ...player,
+
+    realName: player.real_name || '',
+    nickname: player.nickname || '',
+    age: player.age ?? '',
+    country: player.country || '',
+    photo: player.photo || '',
+
+    status:
+      player.status === 'Sold'
+        ? 'Sold'
+        : 'Unsold',
+
+    teamId: player.team_id || '',
+
+    basePrice: safeNumber(
+      player.base_price ?? player.basePrice,
+      0
+    ),
+
+    soldPrice: safeNumber(
+      player.sold_price ?? player.soldPrice,
+      0
+    ),
+  }
+}
+
+// ==========================================
+// LOCAL STORAGE
+// ==========================================
+
+function readLocalPlayers() {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || '[]'
+    )
+
+    if (!Array.isArray(stored)) {
+      return []
+    }
+
+    return stored.map((player) => ({
+      ...player,
+
+      realName:
+        player.realName ||
+        player.real_name ||
+        '',
+
+      nickname:
+        player.nickname ||
+        '',
+
+      age:
+        player.age ?? '',
+
+      country:
+        player.country ||
+        '',
+
+      photo:
+        player.photo ||
+        '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      teamId:
+        player.teamId ||
+        player.team_id ||
+        '',
+
+      soldPrice:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
+
+      basePrice:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
+    }))
+  } catch {
+    return []
+  }
+}
+
+// ==========================================
+// PROVIDER
+// ==========================================
+
+export function PlayersProvider({
+  children,
+}) {
+  const [players, setPlayers] = useState(
+    readLocalPlayers
+  )
+
+  const [loading, setLoading] =
+    useState(true)
+
+  // ========================================
+  // LOAD FROM SUPABASE
+  // ========================================
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlayers() {
+      console.log(
+        '=============================='
+      )
+
+      console.log(
+        'LOADING PLAYERS FROM SUPABASE...'
+      )
+
+      setLoading(true)
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('players')
+        .select('*')
+        .order('created_at', {
+          ascending: true,
+        })
+
+      console.log(
+        'SUPABASE PLAYERS RESULT:',
+        {
+          data,
+          error,
+        }
+      )
+
+      if (cancelled) {
+        return
+      }
+
+      if (error) {
+        console.error(
+          'PLAYERS LOAD ERROR:',
+          error
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      setPlayers(
+        (data || []).map(
+          mapSupabasePlayer
+        )
+      )
+
+      setLoading(false)
+
+      console.log(
+        'PLAYERS LOADED:',
+        data?.length || 0
+      )
+    }
+
+    loadPlayers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // ========================================
+  // LOCAL STORAGE BACKUP
+  // ========================================
+
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(players)
+    )
+  }, [players])
+
+  // ========================================
+  // ADD PLAYER
+  // ========================================
+
+  const addPlayer = async (player) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'ADD PLAYER STARTED'
+    )
+
+    console.log(
+      'PLAYER RECEIVED:',
+      player
+    )
+
+    const newPlayer = {
+      real_name:
+        player.realName || '',
+
+      nickname:
+        player.nickname || '',
+
+      age:
+        player.age === '' ||
+        player.age === null ||
+        player.age === undefined
+          ? null
+          : Number(player.age),
+
+      country:
+        player.country || '',
+
+      photo:
+        player.photo || '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      team_id:
+        player.teamId || null,
+
+      base_price:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
+
+      sold_price:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
+    }
+
+    console.log(
+      'INSERTING PLAYER:',
+      newPlayer
+    )
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from('players')
+      .insert(newPlayer)
+      .select()
+      .single()
+
+    console.log(
+      'SUPABASE INSERT PLAYER RESULT:',
+      {
+        data,
+        error,
+      }
+    )
+
+    if (error) {
+      console.error(
+        'PLAYER INSERT ERROR:',
+        error
+      )
+
+      throw error
+    }
+
+    const mappedPlayer =
+      mapSupabasePlayer(data)
+
+    setPlayers(
+      (current) => [
+        ...current,
+        mappedPlayer,
+      ]
+    )
+
+    console.log(
+      'PLAYER SAVED SUCCESSFULLY:',
+      mappedPlayer
+    )
+
+    return mappedPlayer
+  }
+
+  // ========================================
+  // UPDATE PLAYER
+  // ========================================
+
+  const updatePlayer = async (player) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'UPDATE PLAYER STARTED'
+    )
+
+    console.log(
+      'PLAYER:',
+      player
+    )
+
+    const updatedPlayer = {
+      real_name:
+        player.realName || '',
+
+      nickname:
+        player.nickname || '',
+
+      age:
+        player.age === '' ||
+        player.age === null ||
+        player.age === undefined
+          ? null
+          : Number(player.age),
+
+      country:
+        player.country || '',
+
+      photo:
+        player.photo || '',
+
+      status:
+        player.status === 'Sold'
+          ? 'Sold'
+          : 'Unsold',
+
+      team_id:
+        player.teamId ||
+        player.team_id ||
+        null,
+
+      base_price:
+        Number(
+          player.basePrice ??
+          player.base_price ??
+          0
+        ),
+
+      sold_price:
+        Number(
+          player.soldPrice ??
+          player.sold_price ??
+          0
+        ),
+    }
+
+    console.log(
+      'UPDATING PLAYER IN SUPABASE:',
+      updatedPlayer
+    )
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from('players')
+      .update(updatedPlayer)
+      .eq('id', player.id)
+      .select()
+      .single()
+
+    console.log(
+      'SUPABASE UPDATE PLAYER RESULT:',
+      {
+        data,
+        error,
+      }
+    )
+
+    if (error) {
+      console.error(
+        'PLAYER UPDATE ERROR:',
+        error
+      )
+
+      throw error
+    }
+
+    const mappedPlayer =
+      mapSupabasePlayer(data)
+
+    setPlayers(
+      (current) =>
+        current.map((item) =>
+          item.id === player.id
+            ? mappedPlayer
+            : item
+        )
+    )
+
+    console.log(
+      'PLAYER UPDATED SUCCESSFULLY:',
+      mappedPlayer
+    )
+
+    return mappedPlayer
+  }
+
+  // ========================================
+  // DELETE PLAYER
+  // ========================================
+
+  const deletePlayer = async (id) => {
+    console.log(
+      '=============================='
+    )
+
+    console.log(
+      'DELETE PLAYER STARTED:',
+      id
+    )
+
+    const {
+      error,
+    } = await supabase
+      .from('players')
+      .delete()
+      .eq('id', id)
+
+    console.log(
+      'SUPABASE DELETE PLAYER RESULT:',
+      {
+        error,
+      }
+    )
+
+    if (error) {
+      console.error(
+        'PLAYER DELETE ERROR:',
+        error
+      )
+
+      throw error
+    }
+
+    setPlayers(
+      (current) =>
+        current.filter(
+          (player) =>
+            player.id !== id
+        )
+    )
+
+    console.log(
+      'PLAYER DELETED SUCCESSFULLY'
+    )
+  }
+
+  // ========================================
+  // CONTEXT VALUE
+  // ========================================
+
+  const value = useMemo(
+    () => ({
+      players,
+      loading,
+      addPlayer,
+      updatePlayer,
+      deletePlayer,
+    }),
+    [
+      players,
+      loading,
+    ]
+  )
+
+  return (
+    <PlayersContext.Provider
+      value={value}
+    >
+      {children}
+    </PlayersContext.Provider>
+  )
+}
+
+// ==========================================
+// HOOK
+// ==========================================
+
+export function usePlayers() {
+  return useContext(
+    PlayersContext
+  )
+}
