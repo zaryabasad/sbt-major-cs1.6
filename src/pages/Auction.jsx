@@ -22,6 +22,12 @@ function Auction() {
   isTeamAdmin,
   assignedTeamId
 })
+  console.log('AUCTION AUTH DEBUG', {
+  isAdmin,
+  isSuperAdmin,
+  isTeamAdmin,
+  assignedTeamId
+})
   const { players, updatePlayer } = usePlayers()
   const { teams } = useTeams()
   const { auction, selectPlayer, registerBid, recordSale } = useAuction()
