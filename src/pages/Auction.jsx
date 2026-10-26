@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { FaGavel, FaPlay, FaTrophy, FaUserNinja } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { useAuction } from '../context/AuctionContext'
@@ -17,12 +17,6 @@ function Auction() {
   teamId: assignedTeamId,
 } = useAuth()
 
-console.log('AUCTION AUTH DEBUG', {
-  isAdmin,
-  isSuperAdmin,
-  isTeamAdmin,
-  assignedTeamId,
-})
 
  
   const { players, updatePlayer } = usePlayers()
@@ -134,7 +128,7 @@ console.log('AUCTION AUTH DEBUG', {
     toast.success(
       isSuperAdmin
         ? `${biddingTeam.name} bid ${formatCurrency(nextBid)}`
-        : `Bid placed · ${formatCurrency(nextBid)}`
+        : `Bid placed Â· ${formatCurrency(nextBid)}`
     )
   }
 
@@ -672,8 +666,7 @@ console.log('AUCTION AUTH DEBUG', {
 
         
         .auction-page.auction-final .team-live-status {
-          grid-column: 1 / -1;
-          margin-top: 18px;
+          width:100%; box-sizing:border-box; margin-top: 18px;
           overflow: hidden;
           border: 1px solid rgba(243,199,71,.20);
           border-radius: 12px;
@@ -792,24 +785,17 @@ console.log('AUCTION AUTH DEBUG', {
         }
 
         @media (max-width:1080px) {
-  .auction-page.auction-final .team-live-grid {
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-  }
+          .auction-page.auction-final .team-live-grid {
+            grid-template-columns:repeat(2, minmax(0, 1fr));
+          }
 
-  .auction-page.auction-final .auction-layout {
-    grid-template-columns:1fr 1fr !important;
-  }
+          .auction-page.auction-final .auction-layout {
+            grid-template-columns:1fr 1fr !important;
+          }
 
-  .auction-page.auction-final .auction-layout > .auction-history {
-    grid-column:1 / -1;
-    min-height:420px !important;
-  }
-
-  .auction-page.auction-final .auction-history .history-list {
-    height:330px !important;
-    max-height:330px !important;
-  }
-}
+          .auction-page.auction-final .auction-layout > .auction-history {
+            grid-column:1 / -1;
+            min-height:420px !important;
           }
 
           .auction-page.auction-final .auction-history .history-list {
@@ -870,7 +856,7 @@ console.log('AUCTION AUTH DEBUG', {
 
       <header className="auction-heading">
         <div>
-          <p className="eyebrow">SBT Major · Live Control Room</p>
+          <p className="eyebrow">SBT Major Â· Live Control Room</p>
           <h1>Live Auction</h1>
           <p>Nominate players, accept bids, and finalize auction sales in real time.</p>
         </div>
@@ -925,7 +911,7 @@ console.log('AUCTION AUTH DEBUG', {
                     )}
                     <span>
                       <strong>{player.nickname}</strong>
-                      <small>{player.role} · {formatCurrency(player.basePrice)}</small>
+                      <small>{player.role} Â· {formatCurrency(player.basePrice)}</small>
                     </span>
                   </button>
                 ))
@@ -946,7 +932,7 @@ console.log('AUCTION AUTH DEBUG', {
                 <div>
                   <span className="eyebrow">CURRENT PLAYER</span>
                   <h2>{currentPlayer.nickname}</h2>
-                  <p>{currentPlayer.realName} · {currentPlayer.role}</p>
+                  <p>{currentPlayer.realName} Â· {currentPlayer.role}</p>
                 </div>
               </div>
 
@@ -967,7 +953,7 @@ console.log('AUCTION AUTH DEBUG', {
                       </strong>
                       <small>
                         {selectedTeam
-                          ? `Remaining Budget · ${formatCurrency(
+                          ? `Remaining Budget Â· ${formatCurrency(
                               getTeamRemainingBudget(
                                 selectedTeam
                               )
@@ -995,7 +981,7 @@ console.log('AUCTION AUTH DEBUG', {
                             key={team.id}
                             value={team.id}
                           >
-                            {team.name} ·{' '}
+                            {team.name} Â·{' '}
                             {formatCurrency(
                               getTeamRemainingBudget(
                                 team
@@ -1088,9 +1074,9 @@ console.log('AUCTION AUTH DEBUG', {
               <p className="empty-state-text">No bids have been recorded.</p>
             )}
           </div>
-        </aside>
-    
-            {isSuperAdmin && (
+        </aside>      </section>
+
+      {isSuperAdmin && (
         <section className="glass-card team-live-status">
           <div className="section-heading">
             <div>
@@ -1165,7 +1151,7 @@ console.log('AUCTION AUTH DEBUG', {
                     <strong>
                       {currentPlayer
                         ? formatCurrency(nextBid)
-                        : '—'}
+                        : 'â€”'}
                     </strong>
                   </div>
                 </div>
@@ -1174,7 +1160,6 @@ console.log('AUCTION AUTH DEBUG', {
           </div>
         </section>
       )}
-      </section>
     </main>
   )
 }
