@@ -34,6 +34,7 @@ function Auction() {
     [players]
   )
   const currentPlayer = players.find((player) => player.id === auction.currentPlayerId)
+  const visibleCurrentPlayer = isSuperAdmin ? currentPlayer : (currentPlayer?.status === 'Sold' ? null : currentPlayer)
   const currentTeam = teams.find((team) => team.id === auction.highestTeamId)
 
   const getTeamRemainingBudget = (team) =>
@@ -921,7 +922,7 @@ function Auction() {
             </div>
           </section>
 
-          {currentPlayer ? (
+          {visibleCurrentPlayer ? (
             <section className="glass-card auction-current">
               <div className="current-player">
                 {currentPlayer.photo ? (
@@ -1165,3 +1166,4 @@ function Auction() {
 }
 
 export default Auction
+
