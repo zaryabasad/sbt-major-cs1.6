@@ -1,7 +1,10 @@
 import { FaShieldAlt, FaTimes, FaUsers } from 'react-icons/fa'
 import { formatCurrency } from '../utils/formatCurrency'
+import { useAuth } from '../context/AuthContext'
 
 function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }) {
+  const { isSuperAdmin } = useAuth()
+
   const roster = players.filter(
     (player) =>
       player.status === 'Sold' &&
@@ -103,10 +106,12 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
                   key={player.id}
                 >
                   <span>
-                    {player.nickname ||
-                      player.playerName ||
-                      player.realName ||
-                      'Player'}
+                    {isSuperAdmin
+                      ? player.nickname ||
+                        player.playerName ||
+                        player.realName ||
+                        'Player'
+                      : 'PRIVATE'}
                   </span>
 
                   <strong>
