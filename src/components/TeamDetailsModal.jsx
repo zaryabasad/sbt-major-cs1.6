@@ -89,7 +89,7 @@ function TeamDetailsModal({ team, players = [], onClose }) {
         <div className="team-detail-players">
           <h3>
             <FaUsers />
-            Players ({roster.length})
+            {isSuperAdmin ? 'Players (' + roster.length + ')' : 'Players'}
           </h3>
 
           {roster.length === 0 ? (
@@ -128,3 +128,6 @@ function TeamDetailsModal({ team, players = [], onClose }) {
 }
 
 export default TeamDetailsModal
+
+
+
