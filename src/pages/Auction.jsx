@@ -661,92 +661,146 @@ function Auction() {
           font-size:.79rem;
         }
 
+        
         .auction-page.auction-final .team-live-status {
-          margin-top:18px;
-          padding:0;
-          overflow:hidden;
-          border:1px solid var(--line);
-          background:linear-gradient(145deg,rgba(16,30,54,.98),rgba(5,11,22,.99));
-          box-shadow:0 18px 50px rgba(0,0,0,.2);
+          grid-column: 1 / -1;
+          margin-top: 18px;
+          overflow: hidden;
+          border: 1px solid rgba(243,199,71,.20);
+          border-radius: 12px;
+          background:
+            linear-gradient(
+              145deg,
+              rgba(16,30,54,.98),
+              rgba(5,11,22,.99)
+            );
+          box-shadow:
+            0 18px 50px rgba(0,0,0,.25),
+            inset 0 1px rgba(255,255,255,.03);
         }
 
         .auction-page.auction-final .team-live-status .section-heading {
           display:flex;
           justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          padding:16px 18px;
+          align-items:flex-start;
+          padding:18px 20px 16px;
           border-bottom:1px solid rgba(165,185,220,.10);
+          background:rgba(255,255,255,.015);
         }
 
-        .auction-page.auction-final .team-live-status h2 {
+        .auction-page.auction-final .team-live-status .section-heading h2 {
           margin:3px 0 0;
-          font:800 1.4rem/1 'Barlow Condensed',sans-serif;
+          color:#f7f4e9;
+          font:800 1.5rem/1 'Barlow Condensed',sans-serif;
           text-transform:uppercase;
         }
 
-        .auction-page.auction-final .team-status-grid {
+        .auction-page.auction-final .team-live-grid {
           display:grid;
-          grid-template-columns:repeat(3,minmax(0,1fr));
-          gap:10px;
-          padding:12px;
+          grid-template-columns:repeat(3, minmax(0, 1fr));
+          gap:12px;
+          padding:16px;
         }
 
-        .auction-page.auction-final .team-status-card {
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          min-width:0;
-          padding:13px 14px;
-          border:1px solid rgba(150,175,220,.13);
+        .auction-page.auction-final .team-live-card {
+          padding:15px;
+          border:1px solid rgba(165,185,220,.12);
           border-radius:9px;
           background:rgba(255,255,255,.025);
         }
 
-        .auction-page.auction-final .team-status-name {
-          min-width:0;
-          color:#eef2f8;
-          font-size:.82rem;
-          font-weight:800;
-          overflow-wrap:anywhere;
+        .auction-page.auction-final .team-live-card-top {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          margin-bottom:15px;
         }
 
-        .auction-page.auction-final .team-status-budget {
-          display:block;
-          margin-top:4px;
-          color:#8d9ab1;
-          font-size:.68rem;
-          font-weight:500;
-        }
-
-        .auction-page.auction-final .team-status-pill {
-          flex:0 0 auto;
-          padding:5px 8px;
-          border-radius:5px;
-          font-size:.62rem;
-          font-weight:900;
-          letter-spacing:.04em;
+        .auction-page.auction-final .team-live-card-top strong {
+          color:#f4f7fb;
+          font:800 1.15rem/1 'Barlow Condensed',sans-serif;
           text-transform:uppercase;
         }
 
-        .auction-page.auction-final .team-status-pill.leading { color:#ffdf79; background:rgba(243,199,71,.13); }
-        .auction-page.auction-final .team-status-pill.can-bid { color:#7be6b0; background:rgba(58,205,132,.12); }
-        .auction-page.auction-final .team-status-pill.budget-out { color:#ff8d9b; background:rgba(255,70,95,.12); }
-        .auction-page.auction-final .team-status-pill.waiting { color:#a9b5c9; background:rgba(160,175,200,.10); }
+        .auction-page.auction-final .team-live-status-badge {
+          padding:5px 8px;
+          border-radius:5px;
+          font-size:.58rem;
+          font-weight:900;
+          letter-spacing:.05em;
+          text-transform:uppercase;
+          white-space:nowrap;
+        }
 
-        @media (max-width:760px) {
-          .auction-page.auction-final .team-status-grid { grid-template-columns:1fr; }
+        .auction-page.auction-final .team-live-status-badge.waiting {
+          color:#cbd5e1;
+          background:rgba(148,163,184,.12);
+          border:1px solid rgba(148,163,184,.18);
+        }
+
+        .auction-page.auction-final .team-live-status-badge.leading {
+          color:#07120a;
+          background:#72e09b;
+        }
+
+        .auction-page.auction-final .team-live-status-badge.can-bid {
+          color:#07111f;
+          background:#7bb5ff;
+        }
+
+        .auction-page.auction-final .team-live-status-badge.budget-out {
+          color:#fff;
+          background:#c83b4b;
+        }
+
+        .auction-page.auction-final .team-live-budget,
+        .auction-page.auction-final .team-live-next-bid {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding:8px 0;
+          border-top:1px solid rgba(165,185,220,.07);
+        }
+
+        .auction-page.auction-final .team-live-budget span,
+        .auction-page.auction-final .team-live-next-bid span {
+          color:#7f8da5;
+          font-size:.62rem;
+          font-weight:800;
+          text-transform:uppercase;
+        }
+
+        .auction-page.auction-final .team-live-budget strong {
+          color:#f3c747;
+          font-size:.9rem;
+        }
+
+        .auction-page.auction-final .team-live-next-bid strong {
+          color:#dce7ff;
+          font-size:.78rem;
         }
 
         @media (max-width:1080px) {
-          .auction-page.auction-final .auction-layout {
-            grid-template-columns:1fr 1fr !important;
-          }
+  .auction-page.auction-final .team-live-grid {
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
 
-          .auction-page.auction-final .auction-layout > .auction-history {
-            grid-column:1 / -1;
-            min-height:420px !important;
+  .auction-page.auction-final .auction-layout {
+    grid-template-columns:1fr 1fr !important;
+  }
+
+  .auction-page.auction-final .auction-layout > .auction-history {
+    grid-column:1 / -1;
+    min-height:420px !important;
+  }
+
+  .auction-page.auction-final .auction-history .history-list {
+    height:330px !important;
+    max-height:330px !important;
+  }
+}
           }
 
           .auction-page.auction-final .auction-history .history-list {
@@ -1028,39 +1082,86 @@ function Auction() {
         </aside>
       </section>
 
-      {isSuperAdmin && (
-        <section className="glass-card team-live-status" aria-live="polite">
+      
+    
+            {isSuperAdmin && (
+        <section className="glass-card team-live-status">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">SUPER ADMIN ONLY</span>
+              <span className="eyebrow">SUPER ADMIN CONTROL</span>
               <h2>Team Bidding Status</h2>
             </div>
-            <span className="counter">{teams.length} teams</span>
+
+            <span className="counter">
+              {teams.length} teams
+            </span>
           </div>
-          <div className="team-status-grid">
+
+          <div className="team-live-grid">
             {teams.map((team) => {
-              const remainingBudget = getTeamRemainingBudget(team)
-              const isLeading = Boolean(currentPlayer) && team.id === auction.highestTeamId
-              const canAffordNextBid = Boolean(currentPlayer) && remainingBudget >= nextBid
+              const remainingBudget =
+                getTeamRemainingBudget(team)
+
+              const isLeading =
+                Boolean(currentPlayer) &&
+                team.id === auction.highestTeamId
+
+              const canAffordNextBid =
+                Boolean(currentPlayer) &&
+                remainingBudget >= nextBid
+
               const status = !currentPlayer
-                ? { label: 'Waiting', className: 'waiting' }
+                ? {
+                    label: 'Waiting',
+                    className: 'waiting',
+                  }
                 : isLeading
-                  ? { label: 'Leading', className: 'leading' }
+                  ? {
+                      label: 'Leading',
+                      className: 'leading',
+                    }
                   : canAffordNextBid
-                    ? { label: 'Can Bid', className: 'can-bid' }
-                    : { label: 'Budget Out', className: 'budget-out' }
+                    ? {
+                        label: 'Can Bid',
+                        className: 'can-bid',
+                      }
+                    : {
+                        label: 'Budget Out',
+                        className: 'budget-out',
+                      }
 
               return (
-                <div className="team-status-card" key={team.id}>
-                  <div>
-                    <div className="team-status-name">{team.name}</div>
-                    <span className="team-status-budget">
-                      Remaining · {formatCurrency(remainingBudget)}
+                <div
+                  className="team-live-card"
+                  key={team.id}
+                >
+                  <div className="team-live-card-top">
+                    <strong>{team.name}</strong>
+
+                    <span
+                      className={`team-live-status-badge ${status.className}`}
+                    >
+                      {status.label}
                     </span>
                   </div>
-                  <span className={`team-status-pill ${status.className}`}>
-                    {status.label}
-                  </span>
+
+                  <div className="team-live-budget">
+                    <span>Remaining Budget</span>
+                    <strong>
+                      {formatCurrency(
+                        remainingBudget
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="team-live-next-bid">
+                    <span>Next Bid</span>
+                    <strong>
+                      {currentPlayer
+                        ? formatCurrency(nextBid)
+                        : '—'}
+                    </strong>
+                  </div>
                 </div>
               )
             })}
