@@ -11,17 +11,19 @@ const BID_INCREMENT = 1000
 
 function Auction() {
   const {
-    isAdmin,
-    isSuperAdmin,
-    isTeamAdmin,
-    teamId: assignedTeamId,
-  } = useAuth()
-  console.log('AUCTION AUTH DEBUG', {
   isAdmin,
   isSuperAdmin,
   isTeamAdmin,
-  assignedTeamId
+  teamId: assignedTeamId,
+} = useAuth()
+
+console.log('AUCTION AUTH DEBUG', {
+  isAdmin,
+  isSuperAdmin,
+  isTeamAdmin,
+  assignedTeamId,
 })
+
  
   const { players, updatePlayer } = usePlayers()
   const { teams } = useTeams()
