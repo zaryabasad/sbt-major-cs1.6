@@ -661,6 +661,84 @@ function Auction() {
           font-size:.79rem;
         }
 
+        .auction-page.auction-final .team-live-status {
+          margin-top:18px;
+          padding:0;
+          overflow:hidden;
+          border:1px solid var(--line);
+          background:linear-gradient(145deg,rgba(16,30,54,.98),rgba(5,11,22,.99));
+          box-shadow:0 18px 50px rgba(0,0,0,.2);
+        }
+
+        .auction-page.auction-final .team-live-status .section-heading {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          padding:16px 18px;
+          border-bottom:1px solid rgba(165,185,220,.10);
+        }
+
+        .auction-page.auction-final .team-live-status h2 {
+          margin:3px 0 0;
+          font:800 1.4rem/1 'Barlow Condensed',sans-serif;
+          text-transform:uppercase;
+        }
+
+        .auction-page.auction-final .team-status-grid {
+          display:grid;
+          grid-template-columns:repeat(3,minmax(0,1fr));
+          gap:10px;
+          padding:12px;
+        }
+
+        .auction-page.auction-final .team-status-card {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          min-width:0;
+          padding:13px 14px;
+          border:1px solid rgba(150,175,220,.13);
+          border-radius:9px;
+          background:rgba(255,255,255,.025);
+        }
+
+        .auction-page.auction-final .team-status-name {
+          min-width:0;
+          color:#eef2f8;
+          font-size:.82rem;
+          font-weight:800;
+          overflow-wrap:anywhere;
+        }
+
+        .auction-page.auction-final .team-status-budget {
+          display:block;
+          margin-top:4px;
+          color:#8d9ab1;
+          font-size:.68rem;
+          font-weight:500;
+        }
+
+        .auction-page.auction-final .team-status-pill {
+          flex:0 0 auto;
+          padding:5px 8px;
+          border-radius:5px;
+          font-size:.62rem;
+          font-weight:900;
+          letter-spacing:.04em;
+          text-transform:uppercase;
+        }
+
+        .auction-page.auction-final .team-status-pill.leading { color:#ffdf79; background:rgba(243,199,71,.13); }
+        .auction-page.auction-final .team-status-pill.can-bid { color:#7be6b0; background:rgba(58,205,132,.12); }
+        .auction-page.auction-final .team-status-pill.budget-out { color:#ff8d9b; background:rgba(255,70,95,.12); }
+        .auction-page.auction-final .team-status-pill.waiting { color:#a9b5c9; background:rgba(160,175,200,.10); }
+
+        @media (max-width:760px) {
+          .auction-page.auction-final .team-status-grid { grid-template-columns:1fr; }
+        }
+
         @media (max-width:1080px) {
           .auction-page.auction-final .auction-layout {
             grid-template-columns:1fr 1fr !important;
@@ -949,6 +1027,46 @@ function Auction() {
           </div>
         </aside>
       </section>
+
+      {isSuperAdmin && (
+        <section className="glass-card team-live-status" aria-live="polite">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">SUPER ADMIN ONLY</span>
+              <h2>Team Bidding Status</h2>
+            </div>
+            <span className="counter">{teams.length} teams</span>
+          </div>
+          <div className="team-status-grid">
+            {teams.map((team) => {
+              const remainingBudget = getTeamRemainingBudget(team)
+              const isLeading = Boolean(currentPlayer) && team.id === auction.highestTeamId
+              const canAffordNextBid = Boolean(currentPlayer) && remainingBudget >= nextBid
+              const status = !currentPlayer
+                ? { label: 'Waiting', className: 'waiting' }
+                : isLeading
+                  ? { label: 'Leading', className: 'leading' }
+                  : canAffordNextBid
+                    ? { label: 'Can Bid', className: 'can-bid' }
+                    : { label: 'Budget Out', className: 'budget-out' }
+
+              return (
+                <div className="team-status-card" key={team.id}>
+                  <div>
+                    <div className="team-status-name">{team.name}</div>
+                    <span className="team-status-budget">
+                      Remaining · {formatCurrency(remainingBudget)}
+                    </span>
+                  </div>
+                  <span className={`team-status-pill ${status.className}`}>
+                    {status.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
     </main>
   )
 }
