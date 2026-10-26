@@ -1080,9 +1080,6 @@ function Auction() {
             )}
           </div>
         </aside>
-      </section>
-
-      
     
             {isSuperAdmin && (
         <section className="glass-card team-live-status">
@@ -1168,6 +1165,7 @@ function Auction() {
           </div>
         </section>
       )}
+      </section>
     </main>
   )
 }
