@@ -5,40 +5,50 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAuction } from '../context/AuctionContext'
+import { useTeams } from '../context/TeamsContext'
 
 function AuctionOutOverlay() {
   const { user, isTeamAdmin, isSuperAdmin, teamId } = useAuth()
   const { auction } = useAuction()
+  const { teams } = useTeams()
   const [outTeamIds, setOutTeamIds] = useState([])
   const [busy, setBusy] = useState(false)
 
   const playerId = auction.currentPlayerId || ''
 
-  const loadOwnOutStatus = async () => {
-    if (!playerId || !teamId) {
-      setOutTeamIds([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('auction_team_out')
-      .select('team_id')
-      .eq('player_id', playerId)
-      .eq('team_id', teamId)
-      .maybeSingle()
-
-    if (error) {
-      console.error('AUCTION OUT STATUS LOAD ERROR:', error)
-      setOutTeamIds([])
-      return
-    }
-
-    setOutTeamIds(data?.team_id ? [String(data.team_id)] : [])
-  }
-
   useEffect(() => {
-    void loadOwnOutStatus()
-  }, [playerId, teamId])
+    let cancelled = false
+
+    const loadOutTeams = async () => {
+      if (!playerId) {
+        if (!cancelled) setOutTeamIds([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('auction_team_out')
+        .select('team_id')
+        .eq('player_id', playerId)
+
+      if (error) {
+        console.error('AUCTION OUT TEAMS LOAD ERROR:', error)
+        if (!cancelled) setOutTeamIds([])
+        return
+      }
+
+      if (!cancelled) {
+        setOutTeamIds((data || []).map((row) => String(row.team_id)))
+      }
+    }
+
+    void loadOutTeams()
+    const timer = window.setInterval(loadOutTeams, 1000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [playerId])
 
   const isOwnTeamOut = Boolean(
     teamId && outTeamIds.includes(String(teamId))
@@ -59,6 +69,10 @@ function AuctionOutOverlay() {
     !isLeadingTeam
   )
 
+  const outTeams = teams.filter((team) =>
+    outTeamIds.includes(String(team.id))
+  )
+
   const handleOut = async () => {
     if (!canOut || busy) return
 
@@ -75,7 +89,9 @@ function AuctionOutOverlay() {
 
     if (error) {
       if (String(error.code) === '23505') {
-        setOutTeamIds([String(teamId)])
+        setOutTeamIds((current) => [
+          ...new Set([...current, String(teamId)]),
+        ])
         toast('Your team is already OUT for this player.')
         return
       }
@@ -85,7 +101,9 @@ function AuctionOutOverlay() {
       return
     }
 
-    setOutTeamIds([String(teamId)])
+    setOutTeamIds((current) => [
+      ...new Set([...current, String(teamId)]),
+    ])
     toast.success('Your team is OUT of this bid.')
   }
 
@@ -178,6 +196,35 @@ function AuctionOutOverlay() {
           text-transform: uppercase;
         }
 
+        .auction-out-superadmin {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 220px;
+        }
+
+        .auction-out-superadmin-label {
+          color: #f3c747;
+          font-size: .58rem;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+
+        .auction-out-superadmin-list {
+          color: #f7f4e9;
+          font-size: .65rem;
+          font-weight: 800;
+        }
+
+        .auction-out-superadmin-empty {
+          color: #8f9cb2;
+          font-size: .58rem;
+          font-weight: 800;
+          letter-spacing: .05em;
+          text-transform: uppercase;
+        }
+
         @media (max-width: 640px) {
           .auction-out-overlay {
             left: 12px;
@@ -188,6 +235,11 @@ function AuctionOutOverlay() {
 
           .auction-out-button {
             min-width: 112px;
+          }
+
+          .auction-out-superadmin {
+            min-width: 0;
+            flex: 1;
           }
         }
       `}</style>
@@ -214,9 +266,16 @@ function AuctionOutOverlay() {
         )}
 
         {isSuperAdmin && (
-          <span className="auction-out-private-status">
-            Private bidding control
-          </span>
+          <div className="auction-out-superadmin">
+            <span className="auction-out-superadmin-label">OUT TEAMS</span>
+            {outTeams.length > 0 ? (
+              <span className="auction-out-superadmin-list">
+                {outTeams.map((team) => team.name).join(' • ')}
+              </span>
+            ) : (
+              <span className="auction-out-superadmin-empty">No teams OUT yet</span>
+            )}
+          </div>
         )}
 
         {!isTeamAdmin && !isSuperAdmin && (
