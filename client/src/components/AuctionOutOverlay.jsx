@@ -167,33 +167,67 @@ function AuctionOutOverlay() {
 
     setBusy(true)
 
-    const { error } = await supabase
-      .from('auction_team_out')
-      .insert({
-        player_id: playerId,
-        team_id: teamId,
-      })
+    try {
+      // Always verify the latest bid from Supabase before allowing OUT.
+      // This prevents a stale browser from letting the current highest
+      // bidder mark itself OUT after another team has bid.
+      const { data: latestBid, error: latestBidError } = await supabase
+        .from('auction_history')
+        .select('team_id, amount, type, created_at')
+        .eq('player_id', playerId)
+        .eq('type', 'bid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    setBusy(false)
+      if (latestBidError) {
+        throw new Error(
+          latestBidError.message ||
+            'Could not verify the current highest bid.'
+        )
+      }
 
-    if (error) {
-      if (String(error.code) === '23505') {
-        setOutTeamIds((current) => [
-          ...new Set([...current, String(teamId)]),
-        ])
-        toast('Your team is already OUT for this player.')
+      if (
+        latestBid?.team_id &&
+        String(latestBid.team_id) === String(teamId)
+      ) {
+        toast.error('Highest bidder cannot mark itself OUT.')
         return
       }
 
-      console.error('AUCTION TEAM OUT ERROR:', error)
-      toast.error(error.message || 'Could not mark your team OUT.')
-      return
-    }
+      const { error } = await supabase
+        .from('auction_team_out')
+        .insert({
+          player_id: playerId,
+          team_id: teamId,
+        })
 
-    setOutTeamIds((current) => [
-      ...new Set([...current, String(teamId)]),
-    ])
-    toast.success('Your team is OUT of this bid.')
+      if (error) {
+        if (String(error.code) === '23505') {
+          setOutTeamIds((current) => [
+            ...new Set([...current, String(teamId)]),
+          ])
+          toast('Your team is already OUT for this player.')
+          return
+        }
+
+        throw new Error(
+          error.message || 'Could not mark your team OUT.'
+        )
+      }
+
+      setOutTeamIds((current) => [
+        ...new Set([...current, String(teamId)]),
+      ])
+      toast.success('Your team is OUT of this bid.')
+    } catch (error) {
+      console.error('AUCTION TEAM OUT ERROR:', error)
+      toast.error(
+        error?.message || 'Could not mark your team OUT.'
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!playerId || !user) return null
@@ -339,7 +373,7 @@ function AuctionOutOverlay() {
             {isOwnTeamOut ? (
               <span className="auction-out-done">You are OUT</span>
             ) : isLeadingTeam ? (
-              <span className="auction-out-leader">Leading bid</span>
+              <span className="auction-out-leader">Leading bid · OUT blocked</span>
             ) : (
               <button
                 className="auction-out-button"
@@ -348,7 +382,7 @@ function AuctionOutOverlay() {
                 onClick={handleOut}
               >
                 <FaBan />
-                {busy ? 'Marking OUT…' : 'OUT'}
+                {busy ? 'Checking…' : 'OUT'}
               </button>
             )}
           </>
