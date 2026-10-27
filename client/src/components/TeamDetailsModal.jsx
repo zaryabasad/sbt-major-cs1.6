@@ -7,8 +7,8 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
 
   const roster = players.filter(
     (player) =>
-      player.status === 'Sold' &&
-      String(player.teamId || player.team_id || '') === String(team.id)
+      String(player.status || '').trim().toLowerCase() === 'sold' &&
+      String(player.teamId ?? player.team_id ?? '') === String(team.id)
   )
 
   const getSoldPrice = (player) => {
@@ -22,15 +22,18 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
     return Number.isFinite(number) ? number : 0
   }
 
-  const getPlayerName = (player) =>
-    String(
-      player.nickname ||
-      player.playerName ||
-      player.player_name ||
-      player.realName ||
-      player.real_name ||
+  const getPlayerName = (player) => {
+    const name =
+      player.realName ??
+      player.real_name ??
+      player.nickname ??
+      player.playerName ??
+      player.player_name ??
+      player.name ??
       'Player'
-    ).trim() || 'Player'
+
+    return String(name).trim() || 'Player'
+  }
 
   const startingBudget = Number(
     team.startingBudget ??
@@ -89,9 +92,29 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
               const soldPrice = getSoldPrice(player)
 
               return (
-                <div className="team-player-row" key={player.id}>
-                  <span>{getPlayerName(player)}</span>
-                  <strong>
+                <div
+                  className="team-player-row"
+                  key={player.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '16px',
+                    width: '100%',
+                  }}
+                >
+                  <strong
+                    style={{
+                      display: 'block',
+                      visibility: 'visible',
+                      opacity: 1,
+                      color: '#f7f4e9',
+                      flex: '1 1 auto',
+                    }}
+                  >
+                    {getPlayerName(player)}
+                  </strong>
+                  <strong style={{ flex: '0 0 auto' }}>
                     {canViewBudget ? formatCurrency(soldPrice) : 'PRIVATE'}
                   </strong>
                 </div>
