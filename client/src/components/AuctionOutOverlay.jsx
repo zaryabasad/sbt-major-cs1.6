@@ -14,6 +14,7 @@ function AuctionOutOverlay() {
   const { players, updatePlayer } = usePlayers()
   const { teams } = useTeams()
   const [outTeamIds, setOutTeamIds] = useState([])
+  const [leadingTeamId, setLeadingTeamId] = useState('')
   const [busy, setBusy] = useState(false)
   const autoSaleBusyRef = useRef(false)
 
@@ -25,30 +26,53 @@ function AuctionOutOverlay() {
   useEffect(() => {
     let cancelled = false
 
-    const loadOutTeams = async () => {
+    const loadAuctionControls = async () => {
       if (!playerId) {
-        if (!cancelled) setOutTeamIds([])
+        if (!cancelled) {
+          setOutTeamIds([])
+          setLeadingTeamId('')
+        }
         return
       }
 
-      const { data, error } = await supabase
-        .from('auction_team_out')
-        .select('team_id')
-        .eq('player_id', playerId)
+      const [outResult, bidResult] = await Promise.all([
+        supabase
+          .from('auction_team_out')
+          .select('team_id')
+          .eq('player_id', playerId),
+        supabase
+          .from('auction_history')
+          .select('team_id, amount, created_at')
+          .eq('player_id', playerId)
+          .eq('type', 'bid')
+          .order('created_at', { ascending: false })
+          .limit(1),
+      ])
 
-      if (error) {
-        console.error('AUCTION OUT TEAMS LOAD ERROR:', error)
-        if (!cancelled) setOutTeamIds([])
-        return
+      if (cancelled) return
+
+      if (outResult.error) {
+        console.error('AUCTION OUT TEAMS LOAD ERROR:', outResult.error)
+        setOutTeamIds([])
+      } else {
+        setOutTeamIds(
+          (outResult.data || []).map((row) => String(row.team_id))
+        )
       }
 
-      if (!cancelled) {
-        setOutTeamIds((data || []).map((row) => String(row.team_id)))
+      if (bidResult.error) {
+        console.error('AUCTION LEADING BID LOAD ERROR:', bidResult.error)
+        setLeadingTeamId('')
+      } else {
+        const latestBid = bidResult.data?.[0]
+        setLeadingTeamId(
+          latestBid?.team_id ? String(latestBid.team_id) : ''
+        )
       }
     }
 
-    void loadOutTeams()
-    const timer = window.setInterval(loadOutTeams, 1000)
+    void loadAuctionControls()
+    const timer = window.setInterval(loadAuctionControls, 1000)
 
     return () => {
       cancelled = true
@@ -73,16 +97,11 @@ function AuctionOutOverlay() {
       (team) => !outTeamIds.includes(String(team.id))
     )
 
-    if (remainingTeams.length !== 1) {
-      return undefined
-    }
+    if (remainingTeams.length !== 1) return undefined
 
     const winningTeam = remainingTeams[0]
 
-    if (
-      String(winningTeam.id) !==
-      String(auction.highestTeamId)
-    ) {
+    if (String(winningTeam.id) !== String(auction.highestTeamId)) {
       return undefined
     }
 
@@ -92,10 +111,7 @@ function AuctionOutOverlay() {
       const soldPrice = Number(auction.highestBid || 0)
 
       try {
-        const saleResult = await recordSale(
-          winningTeam.id,
-          soldPrice
-        )
+        const saleResult = await recordSale(winningTeam.id, soldPrice)
 
         if (!saleResult?.success) {
           throw new Error(
@@ -116,8 +132,7 @@ function AuctionOutOverlay() {
       } catch (error) {
         console.error('AUTOMATIC SALE ERROR:', error)
         toast.error(
-          error?.message ||
-            'Automatic sale could not be completed.'
+          error?.message || 'Automatic sale could not be completed.'
         )
       } finally {
         autoSaleBusyRef.current = false
@@ -125,7 +140,6 @@ function AuctionOutOverlay() {
     }
 
     void finalizeAutomaticSale()
-
     return undefined
   }, [
     isSuperAdmin,
@@ -145,8 +159,8 @@ function AuctionOutOverlay() {
 
   const isLeadingTeam = Boolean(
     teamId &&
-    auction.highestTeamId &&
-    String(auction.highestTeamId) === String(teamId)
+    (leadingTeamId || auction.highestTeamId) &&
+    String(leadingTeamId || auction.highestTeamId) === String(teamId)
   )
 
   const canOut = Boolean(
@@ -168,9 +182,8 @@ function AuctionOutOverlay() {
     setBusy(true)
 
     try {
-      // Always verify the latest bid from Supabase before allowing OUT.
-      // This prevents a stale browser from letting the current highest
-      // bidder mark itself OUT after another team has bid.
+      // Final server check: a stale/refreshed browser can never OUT
+      // if this team is currently the latest bidder.
       const { data: latestBid, error: latestBidError } = await supabase
         .from('auction_history')
         .select('team_id, amount, type, created_at')
@@ -191,6 +204,7 @@ function AuctionOutOverlay() {
         latestBid?.team_id &&
         String(latestBid.team_id) === String(teamId)
       ) {
+        setLeadingTeamId(String(latestBid.team_id))
         toast.error('Highest bidder cannot mark itself OUT.')
         return
       }
@@ -222,9 +236,7 @@ function AuctionOutOverlay() {
       toast.success('Your team is OUT of this bid.')
     } catch (error) {
       console.error('AUCTION TEAM OUT ERROR:', error)
-      toast.error(
-        error?.message || 'Could not mark your team OUT.'
-      )
+      toast.error(error?.message || 'Could not mark your team OUT.')
     } finally {
       setBusy(false)
     }
@@ -249,24 +261,6 @@ function AuctionOutOverlay() {
           background: rgba(5,11,22,.94);
           box-shadow: 0 16px 40px rgba(0,0,0,.38);
           backdrop-filter: blur(10px);
-        }
-
-        .auction-out-status span,
-        .auction-out-status strong {
-          display: block;
-        }
-
-        .auction-out-status span {
-          color: #8492aa;
-          font-size: .5rem;
-          font-weight: 900;
-          letter-spacing: .09em;
-        }
-
-        .auction-out-status strong {
-          margin-top: 3px;
-          color: #f7f4e9;
-          font-size: .72rem;
         }
 
         .auction-out-button {
@@ -308,14 +302,6 @@ function AuctionOutOverlay() {
           color: #ff7888;
           font-size: .57rem;
           font-weight: 900;
-          text-transform: uppercase;
-        }
-
-        .auction-out-private-status {
-          color: #8f9cb2;
-          font-size: .56rem;
-          font-weight: 800;
-          letter-spacing: .06em;
           text-transform: uppercase;
         }
 
