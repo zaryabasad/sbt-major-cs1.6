@@ -18,21 +18,9 @@ import { formatCurrency } from '../utils/formatCurrency'
 const filters = ['All', 'Unsold', 'Sold']
 
 function Players() {
-  const {
-    isAdmin,
-    isSuperAdmin,
-  } = useAuth()
-
-  const {
-    players = [],
-    addPlayer,
-    updatePlayer,
-    deletePlayer,
-  } = usePlayers()
-
-  const {
-    teams = [],
-  } = useTeams()
+  const { isAdmin, isSuperAdmin } = useAuth()
+  const { players = [], addPlayer, updatePlayer, deletePlayer } = usePlayers()
+  const { teams = [] } = useTeams()
 
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -58,23 +46,17 @@ function Players() {
       toast.error('Only the Super Admin can manage players')
       return
     }
-
     if (saving) return
 
     try {
       setSaving(true)
-
       if (selectedPlayer) {
-        await updatePlayer({
-          ...player,
-          id: selectedPlayer.id,
-        })
+        await updatePlayer({ ...player, id: selectedPlayer.id })
         toast.success('Player updated successfully')
       } else {
         await addPlayer(player)
         toast.success('Player added successfully')
       }
-
       setIsModalOpen(false)
       setSelectedPlayer(null)
     } catch (error) {
@@ -90,7 +72,6 @@ function Players() {
       toast.error('Only the Super Admin can delete players')
       return
     }
-
     if (!playerToDelete?.id) return
 
     try {
@@ -105,31 +86,18 @@ function Players() {
 
   const visiblePlayers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-
     return players.filter((player) => {
       const realName = String(player?.realName || '').toLowerCase()
       const nickname = String(player?.nickname || '').toLowerCase()
-
-      const matchesSearch =
-        !query ||
-        realName.includes(query) ||
-        nickname.includes(query)
-
-      const matchesStatus =
-        statusFilter === 'All' ||
-        player?.status === statusFilter
-
+      const matchesSearch = !query || realName.includes(query) || nickname.includes(query)
+      const matchesStatus = statusFilter === 'All' || player?.status === statusFilter
       return matchesSearch && matchesStatus
     })
   }, [players, searchTerm, statusFilter])
 
   const getTeamName = (teamId) => {
     if (!teamId) return ''
-
-    const team = teams.find(
-      (item) => String(item.id) === String(teamId)
-    )
-
+    const team = teams.find((item) => String(item.id) === String(teamId))
     return team?.name || ''
   }
 
@@ -158,9 +126,7 @@ function Players() {
         </div>
 
         {isAdmin && !isSuperAdmin && (
-          <div className="players-readonly-note">
-            Team Admin · Read Only
-          </div>
+          <div className="players-readonly-note">Team Admin · Read Only</div>
         )}
 
         {isSuperAdmin && (
@@ -176,7 +142,6 @@ function Players() {
           <FaUserNinja />
           <h2>No players added yet</h2>
           <p>Add players to create the tournament auction pool.</p>
-
           {isSuperAdmin && (
             <button className="button button-primary" onClick={openCreate} type="button">
               <FaPlus />
@@ -228,22 +193,14 @@ function Players() {
               }}
             >
               {visiblePlayers.map((player, index) => {
-                const teamName = getTeamName(
-                  player.teamId || player.team_id
-                )
-
-                const playerKey =
-                  player.id || `${player.nickname || 'player'}-${index}`
+                const teamName = getTeamName(player.teamId || player.team_id)
+                const playerKey = player.id || `${player.nickname || 'player'}-${index}`
 
                 return (
                   <article
                     className="player-card glass-card"
                     key={playerKey}
-                    style={{
-                      width: '100%',
-                      minWidth: 0,
-                      boxSizing: 'border-box',
-                    }}
+                    style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
                   >
                     <div className="player-image">
                       {player.photo ? (
@@ -277,29 +234,20 @@ function Players() {
                       )}
 
                       <div className="player-badges">
-                        {player.role && (
-                          <span className="role-badge">{player.role}</span>
-                        )}
-                        <span
-                          className={`status-badge status-${String(
-                            player.status || 'Unsold'
-                          ).toLowerCase()}`}
-                        >
+                        {player.role && <span className="role-badge">{player.role}</span>}
+                        <span className={`status-badge status-${String(player.status || 'Unsold').toLowerCase()}`}>
                           {player.status || 'Unsold'}
                         </span>
                       </div>
 
                       <h2>{player.realName || 'Unnamed Player'}</h2>
-
-                      <p className="player-nickname">
-                        @{player.nickname || 'unknown'}
-                      </p>
-
+                      <p className="player-nickname">@{player.nickname || 'unknown'}</p>
                       <p className="player-profile">
                         {player.country || 'Unknown'} · {player.age || '—'} years
                       </p>
 
                       <div className="player-meta">
+                        {/* Team identity is intentionally private for every role except Super Admin. */}
                         <span>
                           {isSuperAdmin && player.status === 'Sold' && teamName
                             ? `Team: ${teamName}`
@@ -308,10 +256,7 @@ function Players() {
 
                         <div>
                           <small>Base</small>
-                          <strong>
-                            {formatCurrency(Number(player.basePrice || 0))}
-                          </strong>
-
+                          <strong>{formatCurrency(Number(player.basePrice || 0))}</strong>
                           {player.status === 'Sold' && (
                             <>
                               <br />
