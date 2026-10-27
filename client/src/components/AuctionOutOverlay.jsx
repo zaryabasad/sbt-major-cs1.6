@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FaBan, FaGavel } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 
@@ -9,10 +9,11 @@ import { useTeams } from '../context/TeamsContext'
 
 function AuctionOutOverlay() {
   const { user, isTeamAdmin, isSuperAdmin, teamId } = useAuth()
-  const { auction } = useAuction()
+  const { auction, recordSale } = useAuction()
   const { teams } = useTeams()
   const [outTeamIds, setOutTeamIds] = useState([])
   const [busy, setBusy] = useState(false)
+  const autoSaleBusyRef = useRef(false)
 
   const playerId = auction.currentPlayerId || ''
 
@@ -49,6 +50,92 @@ function AuctionOutOverlay() {
       window.clearInterval(timer)
     }
   }, [playerId])
+
+  useEffect(() => {
+    if (
+      !isSuperAdmin ||
+      !playerId ||
+      !auction.highestTeamId ||
+      Number(auction.highestBid || 0) <= 0 ||
+      teams.length < 2 ||
+      autoSaleBusyRef.current
+    ) {
+      return undefined
+    }
+
+    const remainingTeams = teams.filter(
+      (team) => !outTeamIds.includes(String(team.id))
+    )
+
+    if (remainingTeams.length !== 1) {
+      return undefined
+    }
+
+    const winningTeam = remainingTeams[0]
+
+    if (
+      String(winningTeam.id) !==
+      String(auction.highestTeamId)
+    ) {
+      return undefined
+    }
+
+    autoSaleBusyRef.current = true
+
+    const finalizeAutomaticSale = async () => {
+      const soldPrice = Number(auction.highestBid || 0)
+
+      const saleResult = await recordSale(
+        winningTeam.id,
+        soldPrice
+      )
+
+      if (!saleResult?.success) {
+        console.error(
+          'AUTOMATIC SALE ERROR:',
+          saleResult?.error
+        )
+        autoSaleBusyRef.current = false
+        return
+      }
+
+      const { error: playerError } = await supabase
+        .from('players')
+        .update({
+          status: 'Sold',
+          team_id: winningTeam.id,
+          sold_price: soldPrice,
+        })
+        .eq('id', playerId)
+
+      if (playerError) {
+        console.error(
+          'AUTOMATIC PLAYER UPDATE ERROR:',
+          playerError
+        )
+        toast.error('Player sale recorded, but player update failed.')
+        autoSaleBusyRef.current = false
+        return
+      }
+
+      toast.success(
+        `${winningTeam.name} wins automatically · ${soldPrice.toLocaleString()}`
+      )
+      autoSaleBusyRef.current = false
+    }
+
+    void finalizeAutomaticSale()
+
+    return undefined
+  }, [
+    isSuperAdmin,
+    playerId,
+    auction.highestTeamId,
+    auction.highestBid,
+    outTeamIds,
+    teams,
+    recordSale,
+  ])
 
   const isOwnTeamOut = Boolean(
     teamId && outTeamIds.includes(String(teamId))
