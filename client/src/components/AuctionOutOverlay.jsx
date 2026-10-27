@@ -5,17 +5,22 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAuction } from '../context/AuctionContext'
+import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
 
 function AuctionOutOverlay() {
   const { user, isTeamAdmin, isSuperAdmin, teamId } = useAuth()
   const { auction, recordSale } = useAuction()
+  const { players, updatePlayer } = usePlayers()
   const { teams } = useTeams()
   const [outTeamIds, setOutTeamIds] = useState([])
   const [busy, setBusy] = useState(false)
   const autoSaleBusyRef = useRef(false)
 
   const playerId = auction.currentPlayerId || ''
+  const currentPlayer = players.find(
+    (player) => String(player.id) === String(playerId)
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -55,6 +60,7 @@ function AuctionOutOverlay() {
     if (
       !isSuperAdmin ||
       !playerId ||
+      !currentPlayer ||
       !auction.highestTeamId ||
       Number(auction.highestBid || 0) <= 0 ||
       teams.length < 2 ||
@@ -85,43 +91,37 @@ function AuctionOutOverlay() {
     const finalizeAutomaticSale = async () => {
       const soldPrice = Number(auction.highestBid || 0)
 
-      const saleResult = await recordSale(
-        winningTeam.id,
-        soldPrice
-      )
-
-      if (!saleResult?.success) {
-        console.error(
-          'AUTOMATIC SALE ERROR:',
-          saleResult?.error
+      try {
+        const saleResult = await recordSale(
+          winningTeam.id,
+          soldPrice
         )
-        autoSaleBusyRef.current = false
-        return
-      }
 
-      const { error: playerError } = await supabase
-        .from('players')
-        .update({
+        if (!saleResult?.success) {
+          throw new Error(
+            saleResult?.error || 'Automatic sale could not be recorded.'
+          )
+        }
+
+        await updatePlayer({
+          ...currentPlayer,
           status: 'Sold',
-          team_id: winningTeam.id,
-          sold_price: soldPrice,
+          teamId: winningTeam.id,
+          soldPrice,
         })
-        .eq('id', playerId)
 
-      if (playerError) {
-        console.error(
-          'AUTOMATIC PLAYER UPDATE ERROR:',
-          playerError
+        toast.success(
+          `${winningTeam.name} wins automatically · ${soldPrice.toLocaleString()}`
         )
-        toast.error('Player sale recorded, but player update failed.')
+      } catch (error) {
+        console.error('AUTOMATIC SALE ERROR:', error)
+        toast.error(
+          error?.message ||
+            'Automatic sale could not be completed.'
+        )
+      } finally {
         autoSaleBusyRef.current = false
-        return
       }
-
-      toast.success(
-        `${winningTeam.name} wins automatically · ${soldPrice.toLocaleString()}`
-      )
-      autoSaleBusyRef.current = false
     }
 
     void finalizeAutomaticSale()
@@ -130,11 +130,13 @@ function AuctionOutOverlay() {
   }, [
     isSuperAdmin,
     playerId,
+    currentPlayer,
     auction.highestTeamId,
     auction.highestBid,
     outTeamIds,
     teams,
     recordSale,
+    updatePlayer,
   ])
 
   const isOwnTeamOut = Boolean(
