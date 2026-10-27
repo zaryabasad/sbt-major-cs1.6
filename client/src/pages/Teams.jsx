@@ -219,16 +219,18 @@ function Teams() {
     }
   }
 
-  // Support both camelCase and Supabase snake_case player fields.
-  // Sold players must remain visible to Super Admin even when the
-  // player record uses team_id instead of teamId.
   const getRoster = (teamId) => {
+    const normalizedTeamId = String(teamId || '')
+
     return players.filter((player) => {
-      const playerTeamId = player.teamId ?? player.team_id
+      const playerStatus = String(player.status || '').trim().toLowerCase()
+      const playerTeamId = String(
+        player.teamId ?? player.team_id ?? ''
+      )
 
       return (
-        player.status === 'Sold' &&
-        String(playerTeamId || '') === String(teamId || '')
+        playerStatus === 'sold' &&
+        playerTeamId === normalizedTeamId
       )
     })
   }
@@ -553,7 +555,7 @@ function Teams() {
       {viewTeam && (
         <TeamDetailsModal
           team={viewTeam}
-          players={getRoster(viewTeam.id)}
+          players={players}
           canViewBudget={canViewBudget(viewTeam)}
           onClose={() => setViewTeam(null)}
         />
