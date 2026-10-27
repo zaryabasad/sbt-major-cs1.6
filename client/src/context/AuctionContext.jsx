@@ -44,6 +44,23 @@ function mapHistory(row) {
   }
 }
 
+function normalizeHistory(rows = []) {
+  const seen = new Set()
+
+  return rows
+    .map(mapHistory)
+    .filter((item) => {
+      if (!item.id || seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime()
+      const timeB = new Date(b.createdAt || 0).getTime()
+      return timeB - timeA
+    })
+}
+
 function getHighestBid(playerHistory, fallbackBid = 0) {
   const bids = playerHistory.filter((item) => item.type === 'bid')
   if (bids.length === 0) return Number(fallbackBid || 0)
@@ -72,7 +89,7 @@ export function AuctionProvider({ children }) {
         return
       }
 
-      const mappedHistory = (data || []).map(mapHistory)
+      const mappedHistory = normalizeHistory(data || [])
       setAuction((current) => {
         if (!current.currentPlayerId) {
           return {
@@ -135,7 +152,7 @@ export function AuctionProvider({ children }) {
       if (historyError) console.error('AUCTION HISTORY LOAD ERROR:', historyError)
       if (stateError) console.error('AUCTION STATE LOAD ERROR:', stateError)
 
-      const mappedHistory = (historyData || []).map(mapHistory)
+      const mappedHistory = normalizeHistory(historyData || [])
       const statePlayerId = stateData?.current_player_id || ''
       const stateBid = Number(stateData?.highest_bid || 0)
 
@@ -163,10 +180,6 @@ export function AuctionProvider({ children }) {
           return next
         }
 
-        // The active auction state identifies the player, while the actual
-        // highest bid is derived from durable bid history. This prevents a
-        // stale auction_state/localStorage value (e.g. 41) from replacing a
-        // newer bid (e.g. 59) after refresh.
         next.currentPlayerId = statePlayerId
         next.highestBid = Number(highestBidItem.amount || stateBid || 0)
         next.highestTeamId = highestBidItem.teamId || ''
@@ -311,7 +324,7 @@ export function AuctionProvider({ children }) {
       ...current,
       highestTeamId: teamId,
       highestBid: numericAmount,
-      history: [historyItem, ...current.history],
+      history: normalizeHistory([historyItem, ...current.history]),
     }))
 
     return { success: true, historyItem }
@@ -370,7 +383,7 @@ export function AuctionProvider({ children }) {
       highestBid: 0,
       highestTeamId: '',
       timeRemaining: 0,
-      history: [historyItem, ...current.history],
+      history: normalizeHistory([historyItem, ...current.history]),
     }))
 
     return { success: true, historyItem }
