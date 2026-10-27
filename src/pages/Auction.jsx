@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePlayers } from '../context/PlayersContext'
 import { useTeams } from '../context/TeamsContext'
 import { formatCurrency } from '../utils/formatCurrency'
+import AuctionOutOverlay from '../components/AuctionOutOverlay'
 
 const BID_INCREMENT = 1000
 
@@ -181,6 +182,7 @@ function Auction() {
 
   return (
     <main className="auction-page auction-final">
+      <AuctionOutOverlay />
       <style>{`
         .auction-page.auction-final {
           --gold: #f3c747;
@@ -1152,7 +1154,7 @@ function Auction() {
                     <strong>
                       {currentPlayer
                         ? formatCurrency(nextBid)
-                        : 'â€”'}
+                        : '—'}
                     </strong>
                   </div>
                 </div>
@@ -1166,4 +1168,6 @@ function Auction() {
 }
 
 export default Auction
+
+
 

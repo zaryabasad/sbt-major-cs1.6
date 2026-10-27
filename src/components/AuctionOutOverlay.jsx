@@ -17,61 +17,61 @@ function AuctionOutOverlay() {
 
   const playerId = auction.currentPlayerId || ''
 
-  const loadOutStatus = async () => {
-    if (!playerId) {
-      setOutTeamIds([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('auction_team_out')
-      .select('team_id')
-      .eq('player_id', playerId)
-
-    if (error) {
-      console.error('AUCTION OUT STATUS LOAD ERROR:', error)
-      return
-    }
-
-    setOutTeamIds(
-      (data || []).map((row) => String(row.team_id))
-    )
-  }
-
   useEffect(() => {
-    void loadOutStatus()
+    let cancelled = false
 
-    if (!playerId) return undefined
+    const loadOutTeams = async () => {
+      if (!playerId) {
+        if (!cancelled) setOutTeamIds([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('auction_team_out')
+        .select('team_id')
+        .eq('player_id', playerId)
+
+      if (error) {
+        console.error('AUCTION OUT TEAMS LOAD ERROR:', error)
+        return
+      }
+
+      if (!cancelled) {
+        setOutTeamIds(
+          (data || []).map((row) => String(row.team_id))
+        )
+      }
+    }
+
+    void loadOutTeams()
 
     const timer = window.setInterval(
-      loadOutStatus,
+      loadOutTeams,
       1000
     )
 
     return () => {
+      cancelled = true
       window.clearInterval(timer)
     }
   }, [playerId])
 
-  const isOwnTeamOut = Boolean(
-    teamId &&
+  const isOwnTeamOut =
+    Boolean(teamId) &&
     outTeamIds.includes(String(teamId))
-  )
 
-  const isLeadingTeam = Boolean(
-    teamId &&
-    auction.highestTeamId &&
+  const isLeadingTeam =
+    Boolean(teamId) &&
+    Boolean(auction.highestTeamId) &&
     String(auction.highestTeamId) === String(teamId)
-  )
 
-  const canOut = Boolean(
-    user &&
+  const canOut =
+    Boolean(user) &&
     isTeamAdmin &&
-    teamId &&
-    playerId &&
+    Boolean(teamId) &&
+    Boolean(playerId) &&
     !isOwnTeamOut &&
     !isLeadingTeam
-  )
 
   const outTeams = teams.filter((team) =>
     outTeamIds.includes(String(team.id))
@@ -104,10 +104,12 @@ function AuctionOutOverlay() {
       }
 
       console.error('AUCTION TEAM OUT ERROR:', error)
+
       toast.error(
         error.message ||
-          'Could not mark your team OUT.'
+        'Could not mark your team OUT.'
       )
+
       return
     }
 
@@ -123,182 +125,108 @@ function AuctionOutOverlay() {
   if (!playerId || !user) return null
 
   return (
-    <>
-      <style>{`
-        .auction-out-overlay {
-          position: fixed;
-          right: 20px;
-          bottom: 20px;
-          z-index: 1200;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 12px;
-          border: 1px solid rgba(243,199,71,.24);
-          border-radius: 10px;
-          background: rgba(5,11,22,.96);
-          box-shadow: 0 16px 40px rgba(0,0,0,.38);
-          backdrop-filter: blur(10px);
-        }
+    <div
+      style={{
+        position: 'fixed',
+        right: 20,
+        bottom: 20,
+        zIndex: 1200,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px',
+        border: '1px solid rgba(243,199,71,.25)',
+        borderRadius: 10,
+        background: 'rgba(5,11,22,.97)',
+        boxShadow: '0 16px 40px rgba(0,0,0,.4)',
+      }}
+    >
+      {isSuperAdmin && (
+        <div>
+          <div
+            style={{
+              color: '#8492aa',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: '0.09em',
+            }}
+          >
+            OUT TEAMS
+          </div>
 
-        .auction-out-status span,
-        .auction-out-status strong {
-          display: block;
-        }
+          <div
+            style={{
+              marginTop: 4,
+              color: outTeams.length
+                ? '#ff7888'
+                : '#8f9cb2',
+              fontSize: 12,
+              fontWeight: 900,
+            }}
+          >
+            {outTeams.length
+              ? outTeams
+                  .map((team) => team.name)
+                  .join(' • ')
+              : 'No teams OUT yet'}
+          </div>
+        </div>
+      )}
 
-        .auction-out-status span {
-          color: #8492aa;
-          font-size: .5rem;
-          font-weight: 900;
-          letter-spacing: .09em;
-        }
+      {isTeamAdmin && (
+        <>
+          {isOwnTeamOut ? (
+            <span
+              style={{
+                color: '#ff7888',
+                fontSize: 10,
+                fontWeight: 900,
+              }}
+            >
+              YOU ARE OUT
+            </span>
+          ) : isLeadingTeam ? (
+            <span
+              style={{
+                color: '#f3c747',
+                fontSize: 10,
+                fontWeight: 900,
+              }}
+            >
+              LEADING BID
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={!canOut || busy}
+              onClick={handleOut}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                minHeight: 40,
+                padding: '0 14px',
+                border: '1px solid rgba(255,82,100,.3)',
+                borderRadius: 7,
+                color: '#fff',
+                background:
+                  'linear-gradient(135deg,#7d1827,#4b0d18)',
+                fontSize: 10,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              <FaBan />
+              {busy ? 'MARKING OUT...' : 'OUT'}
+            </button>
+          )}
+        </>
+      )}
 
-        .auction-out-status strong {
-          margin-top: 3px;
-          color: #f7f4e9;
-          font-size: .72rem;
-        }
-
-        .auction-out-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          min-height: 40px;
-          padding: 0 13px;
-          border: 1px solid rgba(255,82,100,.3);
-          border-radius: 7px;
-          color: #fff;
-          background: linear-gradient(135deg,#7d1827,#4b0d18);
-          font-size: .6rem;
-          font-weight: 900;
-          letter-spacing: .06em;
-          text-transform: uppercase;
-          cursor: pointer;
-        }
-
-        .auction-out-button:disabled {
-          opacity: .65;
-          cursor: not-allowed;
-        }
-
-        .auction-out-leader {
-          color: #f3c747;
-          font-size: .57rem;
-          font-weight: 900;
-          text-transform: uppercase;
-        }
-
-        .auction-out-done {
-          color: #ff7888;
-          font-size: .57rem;
-          font-weight: 900;
-          text-transform: uppercase;
-        }
-
-        .auction-out-private-status {
-          color: #f3c747;
-          font-size: .58rem;
-          font-weight: 900;
-          text-transform: uppercase;
-        }
-
-        .auction-out-teams {
-          max-width: 360px;
-        }
-
-        .auction-out-teams-label {
-          display: block;
-          margin-bottom: 4px;
-          color: #8492aa;
-          font-size: .5rem;
-          font-weight: 900;
-          letter-spacing: .09em;
-          text-transform: uppercase;
-        }
-
-        .auction-out-teams-list {
-          color: #ff7888;
-          font-size: .68rem;
-          font-weight: 900;
-        }
-
-        .auction-out-none {
-          color: #8f9cb2;
-          font-size: .62rem;
-          font-weight: 800;
-        }
-
-        @media (max-width: 640px) {
-          .auction-out-overlay {
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            justify-content: space-between;
-          }
-
-          .auction-out-button {
-            min-width: 112px;
-          }
-
-          .auction-out-teams {
-            max-width: 220px;
-          }
-        }
-      `}</style>
-
-      <div className="auction-out-overlay">
-        {isSuperAdmin && (
-          <>
-            <div className="auction-out-teams">
-              <span className="auction-out-teams-label">
-                OUT TEAMS
-              </span>
-
-              {outTeams.length > 0 ? (
-                <div className="auction-out-teams-list">
-                  {outTeams
-                    .map((team) => team.name)
-                    .join(' • ')}
-                </div>
-              ) : (
-                <div className="auction-out-none">
-                  No teams OUT yet
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {isTeamAdmin && (
-          <>
-            {isOwnTeamOut ? (
-              <span className="auction-out-done">
-                You are OUT
-              </span>
-            ) : isLeadingTeam ? (
-              <span className="auction-out-leader">
-                Leading bid
-              </span>
-            ) : (
-              <button
-                className="auction-out-button"
-                type="button"
-                disabled={!canOut || busy}
-                onClick={handleOut}
-              >
-                <FaBan />
-                {busy ? 'Marking OUT…' : 'OUT'}
-              </button>
-            )}
-          </>
-        )}
-
-        {!isTeamAdmin && !isSuperAdmin && (
-          <FaGavel aria-hidden="true" />
-        )}
-      </div>
-    </>
+      {!isTeamAdmin && !isSuperAdmin && (
+        <FaGavel />
+      )}
+    </div>
   )
 }
 
