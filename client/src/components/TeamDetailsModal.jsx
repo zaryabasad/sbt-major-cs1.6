@@ -89,10 +89,14 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
         <div className="team-detail-players">
           <h3>
             <FaUsers />
-            Players ({roster.length})
+            {isSuperAdmin ? `Players (${roster.length})` : 'Players'}
           </h3>
 
-          {roster.length === 0 ? (
+          {!isSuperAdmin ? (
+            <p className="empty-state-text">
+              Player roster is private.
+            </p>
+          ) : roster.length === 0 ? (
             <p className="empty-state-text">
               No players purchased yet.
             </p>
@@ -106,12 +110,10 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
                   key={player.id}
                 >
                   <span>
-                    {isSuperAdmin
-                      ? player.nickname ||
-                        player.playerName ||
-                        player.realName ||
-                        'Player'
-                      : 'PRIVATE'}
+                    {player.nickname ||
+                      player.playerName ||
+                      player.realName ||
+                      'Player'}
                   </span>
 
                   <strong>
