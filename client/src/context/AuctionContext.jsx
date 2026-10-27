@@ -245,6 +245,22 @@ export function AuctionProvider({ children }) {
 
     const basePrice = Number(player.basePrice ?? player.base_price ?? 0)
 
+    // OUT is tied to a specific auction round. When a player is selected
+    // again, remove any stale OUT records from an earlier round so a refresh
+    // can never carry the previous round's OUT state into the new auction.
+    const { error: outResetError } = await supabase
+      .from('auction_team_out')
+      .delete()
+      .eq('player_id', String(player.id))
+
+    if (outResetError) {
+      console.error('AUCTION OUT RESET ERROR:', outResetError)
+      return {
+        success: false,
+        error: outResetError.message || 'Could not reset the player OUT state.',
+      }
+    }
+
     const { error } = await supabase
       .from('auction_state')
       .upsert({
