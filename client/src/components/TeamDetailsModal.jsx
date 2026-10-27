@@ -19,9 +19,18 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
       0
 
     const number = Number(value)
-
     return Number.isFinite(number) ? number : 0
   }
+
+  const getPlayerName = (player) =>
+    String(
+      player.nickname ||
+      player.playerName ||
+      player.player_name ||
+      player.realName ||
+      player.real_name ||
+      'Player'
+    ).trim() || 'Player'
 
   const startingBudget = Number(
     team.startingBudget ??
@@ -35,16 +44,10 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
     0
   )
 
-  const remainingBudget = Math.max(
-    0,
-    startingBudget - spent
-  )
+  const remainingBudget = Math.max(0, startingBudget - spent)
 
   return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={onClose}
-    >
+    <div className="modal-backdrop" onMouseDown={onClose}>
       <section
         className="team-modal team-details-modal"
         role="dialog"
@@ -54,20 +57,11 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
         <header>
           <div>
             <p className="eyebrow">TEAM DETAILS</p>
-
             <h2>{team.name}</h2>
-
-            <p>
-              Owner: <strong>{team.owner}</strong>
-            </p>
+            <p>Owner: <strong>{team.owner}</strong></p>
           </div>
 
-          <button
-            className="icon-button"
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close">
             <FaTimes />
           </button>
         </header>
@@ -75,15 +69,9 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
         <div className="team-detail-budget">
           <div>
             <FaShieldAlt />
-
             <strong>Remaining Budget</strong>
           </div>
-
-          <h3>
-            {canViewBudget
-              ? formatCurrency(remainingBudget)
-              : 'PRIVATE'}
-          </h3>
+          <h3>{canViewBudget ? formatCurrency(remainingBudget) : 'PRIVATE'}</h3>
         </div>
 
         <div className="team-detail-players">
@@ -93,33 +81,18 @@ function TeamDetailsModal({ team, players = [], onClose, canViewBudget = false }
           </h3>
 
           {!isSuperAdmin ? (
-            <p className="empty-state-text">
-              Player roster is private.
-            </p>
+            <p className="empty-state-text">Player roster is private.</p>
           ) : roster.length === 0 ? (
-            <p className="empty-state-text">
-              No players purchased yet.
-            </p>
+            <p className="empty-state-text">No players purchased yet.</p>
           ) : (
             roster.map((player) => {
               const soldPrice = getSoldPrice(player)
 
               return (
-                <div
-                  className="team-player-row"
-                  key={player.id}
-                >
-                  <span>
-                    {player.nickname ||
-                      player.playerName ||
-                      player.realName ||
-                      'Player'}
-                  </span>
-
+                <div className="team-player-row" key={player.id}>
+                  <span>{getPlayerName(player)}</span>
                   <strong>
-                    {canViewBudget
-                      ? formatCurrency(soldPrice)
-                      : 'PRIVATE'}
+                    {canViewBudget ? formatCurrency(soldPrice) : 'PRIVATE'}
                   </strong>
                 </div>
               )
