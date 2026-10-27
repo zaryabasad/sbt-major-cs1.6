@@ -44,6 +44,17 @@ function mapHistory(row) {
   }
 }
 
+function getHighestBid(playerHistory, fallbackBid = 0) {
+  const bids = playerHistory.filter((item) => item.type === 'bid')
+  if (bids.length === 0) return Number(fallbackBid || 0)
+
+  return bids.reduce(
+    (highest, item) =>
+      Number(item.amount || 0) > Number(highest.amount || 0) ? item : highest,
+    bids[0]
+  )
+}
+
 export function AuctionProvider({ children }) {
   const [auction, setAuction] = useState(readAuction)
   const [historyLoading, setHistoryLoading] = useState(true)
@@ -61,13 +72,30 @@ export function AuctionProvider({ children }) {
         return
       }
 
-      // History is durable history only. Do not let an old bid replace
-      // the currently selected player after a refresh.
       const mappedHistory = (data || []).map(mapHistory)
-      setAuction((current) => ({
-        ...current,
-        history: mappedHistory,
-      }))
+      setAuction((current) => {
+        if (!current.currentPlayerId) {
+          return {
+            ...current,
+            history: mappedHistory,
+          }
+        }
+
+        const playerHistory = mappedHistory.filter(
+          (item) => String(item.playerId) === String(current.currentPlayerId)
+        )
+        const highestBidItem = getHighestBid(
+          playerHistory,
+          current.highestBid
+        )
+
+        return {
+          ...current,
+          history: mappedHistory,
+          highestBid: Number(highestBidItem.amount || 0),
+          highestTeamId: highestBidItem.teamId || '',
+        }
+      })
       setHistoryLoading(false)
     }
 
@@ -117,8 +145,7 @@ export function AuctionProvider({ children }) {
           )
         : []
 
-      const latestBid =
-        playerHistory.find((item) => item.type === 'bid') || null
+      const highestBidItem = getHighestBid(playerHistory, stateBid)
       const latestSale =
         playerHistory.find((item) => item.type === 'sale') || null
 
@@ -136,11 +163,13 @@ export function AuctionProvider({ children }) {
           return next
         }
 
-        // auction_state is the source of truth for the active player and
-        // therefore preserves the selected player's base price on refresh.
+        // The active auction state identifies the player, while the actual
+        // highest bid is derived from durable bid history. This prevents a
+        // stale auction_state/localStorage value (e.g. 41) from replacing a
+        // newer bid (e.g. 59) after refresh.
         next.currentPlayerId = statePlayerId
-        next.highestBid = stateBid
-        next.highestTeamId = latestBid?.teamId || ''
+        next.highestBid = Number(highestBidItem.amount || stateBid || 0)
+        next.highestTeamId = highestBidItem.teamId || ''
         next.timeRemaining = Number(stateData?.time_remaining ?? 0)
 
         if (latestSale) {
