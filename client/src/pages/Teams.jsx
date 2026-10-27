@@ -360,11 +360,13 @@ function Teams() {
                     </strong>
                   </div>
 
-                  <div>
-                    <FaUsers />
-                    <span>Players</span>
-                    <strong>{roster.length}</strong>
-                  </div>
+                  {isSuperAdmin && (
+                    <div>
+                      <FaUsers />
+                      <span>Players</span>
+                      <strong>{roster.length}</strong>
+                    </div>
+                  )}
                 </div>
               </article>
             )
