@@ -139,7 +139,7 @@ export function AuctionProvider({ children }) {
         supabase.rpc('get_auction_history'),
         supabase
           .from('auction_state')
-          .select('current_player_id, highest_bid, time_remaining')
+          .select('current_player_id, highest_bid, time_remaining, updated_at')
           .eq('id', 1)
           .maybeSingle(),
       ])
@@ -163,8 +163,6 @@ export function AuctionProvider({ children }) {
         : []
 
       const highestBidItem = getHighestBid(playerHistory, stateBid)
-      const latestSale =
-        playerHistory.find((item) => item.type === 'sale') || null
 
       setAuction((current) => {
         const next = {
@@ -185,13 +183,8 @@ export function AuctionProvider({ children }) {
         next.highestTeamId = highestBidItem.teamId || ''
         next.timeRemaining = Number(stateData?.time_remaining ?? 0)
 
-        if (latestSale) {
-          next.currentPlayerId = ''
-          next.highestBid = 0
-          next.highestTeamId = ''
-          next.timeRemaining = 0
-        }
-
+        // Do not clear the current block from historical sale rows. The
+        // authoritative source for the active block is auction_state.
         return next
       })
 
